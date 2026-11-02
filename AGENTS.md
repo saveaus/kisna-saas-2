@@ -7,3 +7,49 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Care OS: project rules
+
+Read `docs/brief.md` first. It lists every feature, where it comes from, and
+the build order (Phase 1 plan).
+
+## Where things come from
+- **Imploy** decides what a feature does and which fields exist
+  (`docs/imploy-fields.md`, `src/lib/fields.ts`).
+- **Kinsa** decides what compliance features do.
+- **Lightfield** decides how everything looks and works
+  (`docs/design-tokens.md`). Where they clash, Lightfield wins.
+- Study those apps in the browser **read-only**: never save, submit, send
+  or delete anything in them. Don't copy their code, private APIs, assets or
+  exact wording.
+
+## Conventions
+- **Reuse the templates.** Every list uses `DataTable`, every record uses
+  `RecordView`, every create/edit form uses `Popup` with chips. Don't build
+  one-off layouts or new styles.
+- **Use the tokens.** Colours, borders and type come from `globals.css`
+  (`bg-canvas`, `text-ink-3`, `hairline`…). No raw hex values in components.
+- **Folders:** `src/app` routes stay thin; feature code lives in
+  `src/features/<feature>`; shared UI in `src/components`; logic and types
+  in `src/lib`.
+- **Fields are defined once** in `src/lib/fields.ts`. When the database
+  arrives, the schema follows these definitions; update both docs and code
+  together.
+- **Placeholders say when they arrive** ("Arrives in Phase 3"), so the
+  structure is visible before the feature exists.
+- **Cache Components is on** (`next.config.ts`). `params` is a Promise;
+  read the current time only on the client or inside Suspense.
+
+## Data and security
+- Development database only. No real participant data until role-based
+  database rules are in place and tested for every role.
+- Every table gets row level security from the start, checking role, not
+  just workspace membership.
+- NDIS pricing, award rates and claims must be checked against official
+  sources and covered by tests.
+
+## Working style
+- One feature per branch, small commits, and stop when a step is done so it
+  can be checked.
+- Run `npm run lint`, `npx tsc --noEmit` and `npm run build` before
+  committing.

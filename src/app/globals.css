@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens measured from Lightfield (crm.lightfield.app), Nov 2026.
+ * See docs/design-tokens.md. Use these tokens; don't hard-code colours.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --canvas: oklch(0.9851 0 0); /* main page background */
+  --sidebar: oklch(0.9702 0 0); /* sidebar background */
+  --surface: oklch(1 0 0); /* cards, popups, composer, primary-ish buttons */
+
+  /* Ink (text) */
+  --ink: oklch(0 0 0 / 0.85); /* primary text */
+  --ink-2: oklch(0 0 0 / 0.75); /* sidebar items, secondary text */
+  --ink-3: oklch(0 0 0 / 0.6); /* section labels */
+  --ink-4: oklch(0 0 0 / 0.5); /* table headers, meta */
+  --ink-5: oklch(0 0 0 / 0.4); /* placeholders, disabled */
+
+  /* Lines and states */
+  --line: oklch(0 0 0 / 0.12); /* every border, 0.5px */
+  --hover: oklch(0 0 0 / 0.04); /* hover and active backgrounds */
+  --overlay: oklch(0 0 0 / 0.12); /* dim behind popups */
+
+  /* Accent (send button, primary action) */
+  --accent: oklch(0.62 0.17 252);
+  --accent-ink: oklch(1 0 0);
+
+  /* Chip tints (text / background) */
+  --green-ink: rgb(29 87 30);
+  --green-bg: oklch(0.6593 0.1841 143.49 / 0.1);
+  --blue-ink: rgb(30 64 150);
+  --blue-bg: oklch(0.62 0.17 252 / 0.1);
+  --orange-ink: rgb(150 70 10);
+  --orange-bg: oklch(0.7 0.17 55 / 0.12);
+  --red-ink: rgb(160 30 30);
+  --red-bg: oklch(0.63 0.21 25 / 0.1);
+  --purple-ink: rgb(90 50 160);
+  --purple-bg: oklch(0.6 0.18 300 / 0.1);
+
+  /* Shadows */
+  --shadow-button: 0 1px 3px 0 oklch(0 0 0 / 0.04);
+  --shadow-float: 0 8px 24px 0 oklch(0 0 0 / 0.06);
+  --shadow-popup: 0 16px 48px 0 oklch(0 0 0 / 0.12);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-sidebar: var(--sidebar);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-ink-5: var(--ink-5);
+  --color-line: var(--line);
+  --color-hover: var(--hover);
+  --color-overlay: var(--overlay);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --shadow-button: var(--shadow-button);
+  --shadow-float: var(--shadow-float);
+  --shadow-popup: var(--shadow-popup);
+  --radius-control: 6px;
+  --radius-panel: 10px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Lightfield uses hairline 0.5px borders everywhere */
+.hairline {
+  border: 0.5px solid var(--line);
 }

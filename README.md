@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Care OS
 
-## Getting Started
+An operating system for Australian NDIS and Support at Home providers:
+clients, staff, rostering, compliance and billing, with an AI assistant.
+Features follow Imploy and Kinsa; the look and structure follow Lightfield.
 
-First, run the development server:
+**Status:** Phase 1, Step 1 done: the app shell, Lightfield design tokens,
+and working table, record and popup templates, shown with demo data.
+Nothing is saved yet; login and the database arrive in Step 2.
+
+## Run it
+
+You need Node.js 20.9 or newer.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What's here
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Page | What you can do |
+| --- | --- |
+| Up next (`/`) | Today's date with Shifts, Tasks and Alerts placeholders |
+| Clients (`/clients`) | Views, filters, Display menu, column menus, Create client popup |
+| Client record (`/clients/2`) | Inline tabs, Overview, Notes, Details panel with Imploy's fields |
+| Staff (`/staff`) | Same table template; Create staff popup |
+| Staff record (`/staff/1303`) | Overview, Compliance document list, Employment fields, Details panel |
+| Sites (`/sites`) | Sites table |
 
-## Learn More
+Greyed sidebar items show which phase they arrive in.
 
-To learn more about Next.js, take a look at the following resources:
+## Docs
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `docs/brief.md`: the build brief: features, sources, phases and the next prompts
+- `docs/imploy-fields.md`: every Imploy client, site and staff field
+- `docs/design-tokens.md`: Lightfield's measured colours, type and sizes
+- `AGENTS.md`: rules for Claude (or anyone) working in this repo
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Next
 
-## Deploy on Vercel
+Follow the Step 2, 3 and 4 prompts in `docs/brief.md` (Build prompts
+section), one at a time.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Checks
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
