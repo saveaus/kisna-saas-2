@@ -13,7 +13,8 @@ Items marked **TODO** weren't visible in Imploy and need confirming.
 
 ## Clients (37 attributes)
 
-Funding Type is required and locked; everything else is optional.
+Funding Type is required and locked; everything else is optional. Care OS also
+lists Name and Status under Client Information so they can be edited there.
 
 ### Client Information
 | Field | Type | Options / notes |
@@ -82,6 +83,19 @@ Fields shown depend on Funding Type.
 | Field | Type |
 | --- | --- |
 | Lists | Relation (saved lists the client is in) |
+
+### Contacts
+**To confirm against Imploy:** these aren't from Imploy's field list. The brief
+names family, coordinators and plan managers; the rest is a starting point.
+
+| Field | Type | Options / notes |
+| --- | --- | --- |
+| Name | Text, **required** | |
+| Type | Select, **required** | Family, Support Coordinator, Plan Manager, Other |
+| Relationship | Text | e.g. Daughter |
+| Phone | Phone | |
+| Email | Email | |
+| Notes | Long text | |
 
 ### Client table columns (Imploy default)
 Client Name, ID, Type, Variant Type, DOB, Phone Number, Email Address,

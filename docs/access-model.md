@@ -8,6 +8,9 @@ hides buttons and menu items to match.
 Tests: `npm test` runs `supabase/tests/access.test.ts`, which signs in as each
 role and checks what the database allows.
 
+Step 3's rules are in `20261103020000_client_records.sql`, tested in
+`supabase/tests/client-records.test.ts`.
+
 ## How a user gets access
 
 - A login (Supabase auth user) belongs to a workspace through a **staff**
@@ -64,11 +67,37 @@ phases plug straight in.
   Superadmin, can edit or delete it through the API.
 - **Anonymous visitors** get nothing.
 
+## Client notes, contacts, files and activity
+
+These follow the client: if you can see a client, you can see these. Changing
+them needs Clients & Sites: Full. With the default permissions:
+
+| | Superadmin | Service Manager | Scheduler | Support worker (own clients) |
+| --- | --- | --- | --- | --- |
+| Read notes and contacts, open files, see activity | Yes | Yes | Yes | Yes |
+| Add notes, change contacts, upload or delete files | Yes | Yes | No | No |
+| Edit a note | Their own | Their own | No | No |
+| Delete a note | Any | Their own | No | No |
+
+- **Who wrote a note or uploaded a file** comes from the session, never the
+  request, and can't be changed afterwards.
+- **Files** live in a private bucket (`client-files`, 25 MB per file, no web
+  pages or scripts). They're only reached through a link that lasts one minute,
+  made per click after access is checked. The rules apply to the stored file as
+  well as its row.
+- **Activity** is a summary of the audit log (`client_activity`): who, when and
+  which fields, never the values. Bank detail changes only show for people with
+  Finance access. The audit log itself stays Superadmin-only, and now keeps a
+  copy of anything deleted.
+- **Preferred staff can see the client.** Do Not Send removes access. Removing
+  someone from either list ends their access to that client.
+
 ## The service-role key
 
 `SUPABASE_SERVICE_ROLE_KEY` bypasses all of the above. It's only used:
 
-- by `npm run seed` to create demo logins, and
+- by `npm run seed` to create demo logins, link the demo superadmin to the
+  workspace and add demo saved views, and
 - by the "Send invite" action, after checking the caller is a Superadmin.
 
 Keep it in `.env.local` only. Never use it in client code.

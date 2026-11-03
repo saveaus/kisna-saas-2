@@ -37,53 +37,86 @@ providers, built from scratch in this repo (`saveaus/kisna-saas-2`).
   Worker, with a per-area permission matrix in Settings → Permissions.
 - Saved views are personal (each person sees only their own).
 
-## What's built (on `main`)
+## What's built
+
+On `main`:
 
 - **Step 1, shell:** Lightfield tokens, sidebar, Up next, Ask bar
   (placeholder), `DataTable`, `RecordView`, `Popup` templates.
 - **Step 2, login and roles:** Supabase sign-in, sign-up → create
   workspace, invite by email (superadmin), set password, four roles,
   permissions matrix, row level security on every table, audit log, seed
-  script. 25 database access tests in `supabase/tests` (run in-memory with
-  PGlite, so no Supabase is needed for `npm test`).
+  script.
 - **Clients, Staff, Sites** load from the database. Create client, create
   staff and invite work. Financials only show with Finance access.
 - **Saved views** on all three tables: name on save (+), rename, save
   filters to view, delete; stored per person in `saved_views`.
 
-None of this has been run against a real Supabase project yet; the
-cloud session that built it couldn't reach one.
+On branch `step-3-clients`, not merged yet:
+
+- **Step 3, Clients:** click-to-edit in the Details panel, Notes, Contacts,
+  Files (private bucket, one-minute links), Incomplete flag and activity
+  history. New migration `20261103020000_client_records.sql`, tested per role.
+- **Fictional demo data** in `src/lib/demo-data.ts`, added in Cursor. The seed
+  fills the project's oldest workspace, or creates Demo Provider if there is
+  none.
+
+`npm test` covers the database rules in-memory with PGlite (no Supabase needed)
+and renders the client screens. **Step 3 hasn't run on a real Supabase project,
+and neither have most of Step 2's screens.** Expect to fix things when it does:
+in particular file upload, which PGlite can't exercise.
 
 ## Where setup is up to
 
-Izak created Supabase project `qxhnklaygagfbrgzgmfe` and has signed up
-in the app. Creating a workspace failed with "Could not find the function
-public.create_workspace … in the schema cache". That means the migrations
-haven't been pushed. Next:
+Project `qxhnklaygagfbrgzgmfe`. Izak has signed up in the app. The first two
+migrations **are** on the project, confirmed through the API on 3 Nov
+(`workspaces`, `saved_views` and `create_workspace` all exist). They didn't go
+through the CLI, which has never been linked on this computer, so the project
+may have no record of them. The earlier `create_workspace` error should be gone,
+but hasn't been retested signed in.
 
-1. `.env.local` filled from `.env.example` (URL, anon key, service_role
-   key). Never commit it or paste keys into chat.
-2. `npm run db:link` (project ref above, database password) then
-   `npm run db:push`. If the error remains, run
-   `notify pgrst, 'reload schema';` in the Supabase SQL editor.
-3. Authentication → URL Configuration: Site URL `http://localhost:3000`,
-   redirect `http://localhost:3000/auth/callback`. Copy
-   `supabase/templates/invite.html` into the hosted Invite email template.
-4. `npm run seed`, then `npm run dev`, then sign in as
-   `superadmin@example.com` (password printed by the seed) and check each
-   role (manager@, scheduler@, worker@example.com).
+**Client pages will error until the new migration is pushed**, because they read
+tables it creates.
+
+1. `.env.local` has the URL and anon key. `SUPABASE_SERVICE_ROLE_KEY` (line 11)
+   was still empty on disk. Never commit it or paste keys into chat.
+2. Izak runs `npx supabase@2 login` (needs a browser). Then
+   `npx --yes supabase@2 link --project-ref qxhnklaygagfbrgzgmfe` and
+   `npx --yes supabase@2 migration list`. If the first two show as not applied
+   on the remote, mark them with `migration repair --status applied` rather than
+   letting `db push` run them again. Check the new migration with
+   `db push --dry-run`, then `npm run db:push`. If the API still can't see a
+   change, run `notify pgrst, 'reload schema';` in the SQL editor.
+3. `npm run seed`, then sign in as `superadmin@example.com` (`SEED_PASSWORD` in
+   `.env.local`) and check each role (manager@, scheduler@, worker@example.com).
+4. Authentication → URL Configuration: Site URL `http://localhost:3000`,
+   redirect `http://localhost:3000/**`. Copy
+   `supabase/templates/invite.html` into the hosted Invite email template. This
+   can wait until invites are tested. Supabase's built-in email only reaches
+   team members, 2 emails an hour.
 
 If the Supabase MCP is set up in Cursor, prefer `read_only=true`; all
 schema changes go through files in `supabase/migrations`.
 
+## Waiting on Izak (Step 3)
+
+- Should support workers be able to add notes on their own clients? Today only
+  people with Clients & Sites: Full can.
+- Should support workers open all files on their own clients? Today they can.
+- Contact fields and types aren't from Imploy. Check them against Imploy's
+  Contacts tab.
+- Imploy calls Funding Type "locked". Care OS lets it be changed. Confirm.
+- Import CSV and "Save default for everyone" were labelled Step 3 but aren't in
+  its list. They now say "Arrives after Step 4". Decide when they land.
+
 ## What's next
 
 1. Finish setup above and fix anything that breaks on real Supabase
-   (sign-in, invite email, permissions, saved views).
-2. **Step 3, Clients:** editing in the Details panel, Notes, Files
-   (private storage, short-lived links), Contacts, Incomplete flag,
-   activity history. Prompt is in `docs/brief.md`.
-3. **Step 4, Staff:** same for staff: editing, Notes, Files, Activity.
+   (sign-in, invite email, permissions, saved views, Step 3).
+2. Izak checks Step 3, answers the questions above, then merge it.
+3. **Step 4, Staff:** same for staff: editing, Notes, Files, Activity. Prompt is
+   in `docs/brief.md`. `RecordView`'s `editing` prop, `DataTable`'s `embedded`
+   prop and `audit_log` are ready to reuse.
 4. Then Phase 2 (roster) per `docs/brief.md`.
 
 ## Rules that always apply
