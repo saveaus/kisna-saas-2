@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { RecordView } from "@/components/record/record-view";
 import { Chip, EmptyState } from "@/components/ui/primitives";
-import type { StaffRecord } from "@/lib/demo-data";
+import type { StaffRecord } from "@/lib/records";
+import { InviteButton } from "./invite-button";
 import { STAFF_DOCUMENT_TYPES, STAFF_EMPLOYMENT_FIELDS, STAFF_SECTIONS } from "@/lib/fields";
 import { roleTone } from "./staff-view";
 
@@ -32,7 +33,13 @@ const soon = (icon: typeof Wallet, title: string, when: string) => (
   <EmptyState icon={icon} title={title} body={`Arrives in ${when}.`} />
 );
 
-export function StaffRecordView({ person }: { person: StaffRecord }) {
+export function StaffRecordView({
+  person,
+  canInvite,
+}: {
+  person: StaffRecord;
+  canInvite: boolean;
+}) {
   const nationality = Array.isArray(person.nationality) ? person.nationality.join(", ") : undefined;
 
   return (
@@ -66,10 +73,13 @@ export function StaffRecordView({ person }: { person: StaffRecord }) {
                   <Highlight label="Nationality" value={nationality} />
                   <Highlight label="Type" value={person.employmentType as string} />
                   <Highlight label="Employee ID" value={String(person.id)} />
-                  <Highlight label="Checklist" value={person.checklist as string} />
+                  <Highlight label="Login" value={person.hasLogin as string} />
                   <Highlight label="Access Business" value={person.accessBusiness as string} />
                 </div>
               </section>
+              {canInvite && person.hasLogin !== "Linked" && (
+                <InviteButton staffId={person.id} email={person.email as string} />
+              )}
             </div>
           ),
         },

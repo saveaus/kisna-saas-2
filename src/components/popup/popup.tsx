@@ -26,6 +26,7 @@ export function Popup({
   submitLabel,
   canSubmit,
   onSubmit,
+  error,
 }: {
   open: boolean;
   onClose: () => void;
@@ -41,6 +42,8 @@ export function Popup({
   submitLabel: string;
   canSubmit: boolean;
   onSubmit: () => void;
+  /** Shown in the footer, e.g. when saving failed. */
+  error?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -104,7 +107,10 @@ export function Popup({
           {chips}
         </div>
 
-        <div className="flex items-center justify-end border-t-[0.5px] border-line px-3 py-2.5">
+        <div className="flex items-center justify-end gap-3 border-t-[0.5px] border-line px-3 py-2.5">
+          {error && (
+            <span className="mr-auto text-[12px] text-[var(--red-ink)]">{error}</span>
+          )}
           <button
             type="button"
             disabled={!canSubmit}

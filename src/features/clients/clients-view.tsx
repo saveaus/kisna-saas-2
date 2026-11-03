@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Cake,
   Calendar,
@@ -18,9 +19,10 @@ import {
 import { DataTable, type Column, type View } from "@/components/table/data-table";
 import { Chip, StatusPill, type Tone } from "@/components/ui/primitives";
 import { formatDate } from "@/components/popup/popup";
-import { clients as demoClients, type ClientRecord } from "@/lib/demo-data";
+import type { ClientRecord, StaffOption } from "@/lib/records";
 import { CLASSIFICATIONS, FUNDING_TYPES, GENDERS } from "@/lib/fields";
 import { CreateClientPopup } from "./create-client-popup";
+import { createClientAction } from "./actions";
 
 export const fundingTone: Record<string, Tone> = {
   NDIS: "purple",
@@ -88,7 +90,6 @@ const columns: Column<ClientRecord>[] = [
     icon: ShieldCheck,
     width: 180,
     defaultHidden: true,
-    filterOptions: ["Peanuts", "Penicillin", "Latex"],
   },
   {
     key: "status",
@@ -104,8 +105,16 @@ const views: View[] = [
   { key: "allergies", label: "Participants with allergies", filters: [{ column: "allergies", values: ["__any__"] }] },
 ];
 
-export function ClientsView() {
-  const [rows, setRows] = useState<ClientRecord[]>(demoClients);
+export function ClientsView({
+  rows,
+  canCreate,
+  staffOptions,
+}: {
+  rows: ClientRecord[];
+  canCreate: boolean;
+  staffOptions: StaffOption[];
+}) {
+  const router = useRouter();
   const [creating, setCreating] = useState(false);
 
   return (
@@ -118,19 +127,22 @@ export function ClientsView() {
         rows={rows}
         views={views}
         rowHref={(r) => `/clients/${r.id}`}
-        onCreate={() => setCreating(true)}
+        onCreate={canCreate ? () => setCreating(true) : undefined}
       />
-      <CreateClientPopup
-        open={creating}
-        onClose={() => setCreating(false)}
-        onCreate={(client) => {
-          setRows((prev) => [
-            { ...client, id: Math.max(...prev.map((r) => r.id)) + 1 },
-            ...prev,
-          ]);
-          setCreating(false);
-        }}
-      />
+      {canCreate && (
+        <CreateClientPopup
+          open={creating}
+          staffOptions={staffOptions}
+          onClose={() => setCreating(false)}
+          onCreate={async (input) => {
+            const result = await createClientAction(input);
+            if (!result.ok) return result.error;
+            setCreating(false);
+            router.push(`/clients/${result.id}`);
+            return undefined;
+          }}
+        />
+      )}
     </>
   );
 }

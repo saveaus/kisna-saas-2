@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { CornerDownLeft, History, Paperclip, SlidersHorizontal, Table2 } from "lucide-react";
-import { findClient, findStaff } from "@/lib/demo-data";
 
 /* Lightfield's "Ask" composer: floats at the bottom of every page, 740px
  * max, white, 10px radius, 0.5px border, soft shadow, with a context chip
@@ -11,11 +10,10 @@ import { findClient, findStaff } from "@/lib/demo-data";
 function contextLabel(pathname: string) {
   const [, section, id] = pathname.split("/");
   if (!section) return "Up next";
-  if (section === "clients")
-    return id ? findClient(Number(id))?.name ?? "Client" : "All Clients";
-  if (section === "staff")
-    return id ? findStaff(Number(id))?.name ?? "Staff" : "All Staff";
+  if (section === "clients") return id ? `Client #${id}` : "All Clients";
+  if (section === "staff") return id ? `Staff #${id}` : "All Staff";
   if (section === "sites") return "All Sites";
+  if (section === "settings") return "Settings";
   return section;
 }
 

@@ -37,19 +37,28 @@ the build order (Phase 1 plan).
   together.
 - **Placeholders say when they arrive** ("Arrives in Phase 3"), so the
   structure is visible before the feature exists.
-- **Cache Components is on** (`next.config.ts`). `params` is a Promise;
-  read the current time only on the client or inside Suspense.
+- **Cache Components is off** (`next.config.ts`): signed-in pages render per
+  request. `params` is still a Promise.
+- **Reads go through `src/lib/data/*.server.ts`**, never straight from
+  pages. Writes are server actions in `src/features/<feature>/actions.ts`
+  that call `requirePermission()` first.
 
 ## Data and security
+- Read `docs/access-model.md` before touching tables, roles or permissions.
 - Development database only. No real participant data until role-based
   database rules are in place and tested for every role.
-- Every table gets row level security from the start, checking role, not
-  just workspace membership.
+- Every table gets row level security from the start, checking role and
+  permission area (`private.can`), not just workspace membership. Add tests
+  for each role in `supabase/tests` whenever you add a table.
+- Schema changes are new files in `supabase/migrations`; never edit an
+  applied migration.
+- The service-role key (`src/lib/supabase/admin.ts`) bypasses RLS: use it
+  only after checking the caller's permissions, and never in client code.
 - NDIS pricing, award rates and claims must be checked against official
   sources and covered by tests.
 
 ## Working style
 - One feature per branch, small commits, and stop when a step is done so it
   can be checked.
-- Run `npm run lint`, `npx tsc --noEmit` and `npm run build` before
-  committing.
+- Run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`
+  before committing.

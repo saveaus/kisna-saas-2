@@ -1,15 +1,16 @@
 import { notFound } from "next/navigation";
-import { findStaff, staff } from "@/lib/demo-data";
 import { StaffRecordView } from "@/features/staff/staff-record";
-
-// Demo data: prerender each staff member. Step 4 replaces this with database reads.
-export function generateStaticParams() {
-  return staff.map((s) => ({ id: String(s.id) }));
-}
+import { getStaff } from "@/lib/data/records.server";
+import { getSession } from "@/lib/session";
 
 export default async function StaffMemberPage({ params }: PageProps<"/staff/[id]">) {
   const { id } = await params;
-  const person = findStaff(Number(id));
+  const staffId = Number(id);
+  if (!Number.isInteger(staffId)) notFound();
+
+  const [session, person] = await Promise.all([getSession(), getStaff(staffId)]);
+  // Not found also covers "not allowed": the database hides records you can't see.
   if (!person) notFound();
-  return <StaffRecordView person={person} />;
+
+  return <StaffRecordView person={person} canInvite={session.role === "superadmin"} />;
 }

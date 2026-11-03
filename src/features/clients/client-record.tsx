@@ -16,12 +16,7 @@ import {
 } from "lucide-react";
 import { RecordView } from "@/components/record/record-view";
 import { Button, Chip, EmptyState } from "@/components/ui/primitives";
-import {
-  clientActivity,
-  clientNotes,
-  type ClientRecord,
-  type NoteItem,
-} from "@/lib/demo-data";
+import type { ClientRecord, NoteItem } from "@/lib/records";
 import { CLIENT_COMPLETENESS_KEYS, CLIENT_SECTIONS } from "@/lib/fields";
 import { fundingTone } from "./clients-view";
 
@@ -87,7 +82,7 @@ function Notes({ initial }: { initial: NoteItem[] }) {
           <div className="text-[13px] whitespace-pre-wrap text-ink">{n.body}</div>
         </div>
       ))}
-      <p className="text-[12px] text-ink-4">Demo only: notes are saved to the database in Step 3.</p>
+      <p className="text-[12px] text-ink-4">Not saved yet: notes are stored from Step 3.</p>
     </div>
   );
 }
@@ -96,10 +91,17 @@ const soon = (icon: typeof Wallet, title: string, when: string) => (
   <EmptyState icon={icon} title={title} body={`Arrives in ${when}.`} />
 );
 
-export function ClientRecordView({ client }: { client: ClientRecord }) {
+export function ClientRecordView({
+  client,
+  canSeeFinance,
+}: {
+  client: ClientRecord;
+  canSeeFinance: boolean;
+}) {
   const missing = CLIENT_COMPLETENESS_KEYS.filter((k) => !client[k]);
-  const activity = clientActivity[client.id] ?? [];
-  const notes = clientNotes[client.id] ?? [];
+  // Notes and activity are stored from Step 3.
+  const activity: { what: string; who: string; when: string }[] = [];
+  const notes: NoteItem[] = [];
   const allergies = Array.isArray(client.allergies) ? client.allergies.join(", ") : undefined;
   const funding = client.fundingType ? String(client.fundingType) : undefined;
 
@@ -114,7 +116,11 @@ export function ClientRecordView({ client }: { client: ClientRecord }) {
         (k) => CLIENT_SECTIONS.flatMap((s) => s.fields).find((f) => f.key === k)?.label ?? k,
       )}
       detailsTitle="Client details"
-      sections={CLIENT_SECTIONS}
+      sections={
+        canSeeFinance
+          ? CLIENT_SECTIONS
+          : CLIENT_SECTIONS.filter((sec) => sec.title !== "Client Financial Details")
+      }
       record={client}
       related={[
         { title: "Contacts", items: [], empty: "No contacts yet (Step 3)" },

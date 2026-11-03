@@ -1,15 +1,18 @@
 import { notFound } from "next/navigation";
-import { clients, findClient } from "@/lib/demo-data";
 import { ClientRecordView } from "@/features/clients/client-record";
-
-// Demo data: prerender each client. Step 3 replaces this with database reads.
-export function generateStaticParams() {
-  return clients.map((c) => ({ id: String(c.id) }));
-}
+import { getClient } from "@/lib/data/records.server";
+import { getSession, sessionCan } from "@/lib/session";
 
 export default async function ClientPage({ params }: PageProps<"/clients/[id]">) {
   const { id } = await params;
-  const client = findClient(Number(id));
+  const clientId = Number(id);
+  if (!Number.isInteger(clientId)) notFound();
+
+  const [session, client] = await Promise.all([getSession(), getClient(clientId)]);
+  // Not found also covers "not allowed": the database hides clients you can't see.
   if (!client) notFound();
-  return <ClientRecordView client={client} />;
+
+  return (
+    <ClientRecordView client={client} canSeeFinance={sessionCan(session, "finance", "read")} />
+  );
 }

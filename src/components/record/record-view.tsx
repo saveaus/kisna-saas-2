@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn, initials } from "@/lib/cn";
 import { isFieldVisible, type FieldDef, type FieldSection } from "@/lib/fields";
-import type { FieldValue } from "@/lib/demo-data";
+import type { FieldValue } from "@/lib/records";
 import { Avatar, Button, Chip, StatusPill } from "@/components/ui/primitives";
 import { formatDate } from "@/components/popup/popup";
 

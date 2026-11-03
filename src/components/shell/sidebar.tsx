@@ -13,9 +13,10 @@ import {
   Search,
   Settings,
 } from "lucide-react";
-import { NAV, BUSINESS_NAME, type NavGroup, type NavItem } from "@/lib/nav";
-import { cn } from "@/lib/cn";
-import { MenuDivider, MenuItem, Popover } from "@/components/ui/primitives";
+import { NAV, type NavGroup, type NavItem } from "@/lib/nav";
+import { cn, initials } from "@/lib/cn";
+import { MenuDivider, MenuLabel, Popover } from "@/components/ui/primitives";
+import { signOutAction } from "@/app/auth-actions";
 
 /* Lightfield sidebar: 268px wide, #f5f5f5-ish, 0.5px right border,
  * 32px items with 6px radius, 13px text, 12px section labels. */
@@ -58,8 +59,17 @@ function Item({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-function Group({ group, pathname }: { group: NavGroup; pathname: string }) {
+function Group({
+  group,
+  pathname,
+  hiddenHrefs,
+}: {
+  group: NavGroup;
+  pathname: string;
+  hiddenHrefs: string[];
+}) {
   const [open, setOpen] = useState(group.defaultOpen ?? true);
+  const items = group.items.filter((i) => !i.href || !hiddenHrefs.includes(i.href));
   return (
     <div className="flex flex-col gap-px">
       {group.label && (
@@ -79,14 +89,26 @@ function Group({ group, pathname }: { group: NavGroup; pathname: string }) {
         </button>
       )}
       {open &&
-        group.items.map((item) => (
+        items.map((item) => (
           <Item key={item.label} item={item} pathname={pathname} />
         ))}
     </div>
   );
 }
 
-export function Sidebar() {
+export function Sidebar({
+  workspaceName,
+  userName,
+  roleLabel,
+  hiddenHrefs,
+  canOpenSettings,
+}: {
+  workspaceName: string;
+  userName: string;
+  roleLabel: string;
+  hiddenHrefs: string[];
+  canOpenSettings: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -102,20 +124,40 @@ export function Sidebar() {
               className="flex h-7 items-center gap-2 rounded-[6px] px-1.5 text-[13px] font-medium text-ink hover:bg-hover"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[oklch(0.35_0.03_255)] text-[10px] font-semibold text-white">
-                D
+                {initials(workspaceName).slice(0, 1)}
               </span>
-              {BUSINESS_NAME}
+              <span className="max-w-[150px] truncate">{workspaceName}</span>
               <ChevronDown size={12} className="text-ink-4" />
             </button>
           )}
         >
-          <MenuItem icon={Settings} disabled hint="Phase 1">
-            Settings
-          </MenuItem>
-          <MenuDivider />
-          <MenuItem icon={LogOut} disabled hint="Step 2">
-            Sign out
-          </MenuItem>
+          {(close) => (
+            <>
+              <MenuLabel>
+                {userName} · {roleLabel}
+              </MenuLabel>
+              {canOpenSettings && (
+                <Link
+                  href="/settings/permissions"
+                  onClick={close}
+                  className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-[13px] leading-5 text-ink hover:bg-hover"
+                >
+                  <Settings size={14} strokeWidth={1.75} className="text-ink-3" />
+                  Settings
+                </Link>
+              )}
+              <MenuDivider />
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left text-[13px] leading-5 text-ink hover:bg-hover"
+                >
+                  <LogOut size={14} strokeWidth={1.75} className="text-ink-3" />
+                  Sign out
+                </button>
+              </form>
+            </>
+          )}
         </Popover>
         <div className="flex items-center gap-0.5">
           <button
@@ -136,7 +178,7 @@ export function Sidebar() {
       </div>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
-        <Group group={NAV[0]} pathname={pathname} />
+        <Group group={NAV[0]} pathname={pathname} hiddenHrefs={hiddenHrefs} />
 
         <div className="flex flex-col gap-px">
           <div className="flex h-7 items-center px-[10px] pt-2 text-[12px] font-medium text-ink-3">
@@ -152,7 +194,7 @@ export function Sidebar() {
         </div>
 
         {NAV.slice(1).map((group) => (
-          <Group key={group.label} group={group} pathname={pathname} />
+          <Group key={group.label} group={group} pathname={pathname} hiddenHrefs={hiddenHrefs} />
         ))}
 
         <div className="flex flex-col gap-px">

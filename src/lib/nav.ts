@@ -91,5 +91,4 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-export const BUSINESS_NAME = "Demo Provider";
 export { Building2 as BusinessIcon };

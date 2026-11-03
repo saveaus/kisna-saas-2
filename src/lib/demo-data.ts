@@ -1,32 +1,9 @@
 /**
- * Demo data for Phase 1, Step 1. Nothing here is saved; Steps 2–4 move
- * Clients, Sites and Staff into Supabase. All people are fictional.
+ * Demo records used by `npm run seed` to fill a development workspace.
+ * All people are fictional.
  */
 
-export type FieldValue = string | number | string[] | undefined;
-
-export type ClientRecord = {
-  id: number;
-  name: string;
-  status: "Active" | "Inactive";
-  [key: string]: FieldValue;
-};
-
-export type StaffRecord = {
-  id: number;
-  name: string;
-  status: "Active" | "Inactive";
-  [key: string]: FieldValue;
-};
-
-export type SiteRecord = {
-  id: number;
-  name: string;
-  [key: string]: FieldValue;
-};
-
-export type ActivityItem = { what: string; who: string; when: string };
-export type NoteItem = { author: string; body: string; when: string };
+import type { ActivityItem, ClientRecord, NoteItem, SiteRecord, StaffRecord } from "./records";
 
 export const staff: StaffRecord[] = [
   {
@@ -274,10 +251,3 @@ export const clientNotes: Record<number, NoteItem[]> = {
   ],
 };
 
-export function findClient(id: number) {
-  return clients.find((c) => c.id === id);
-}
-
-export function findStaff(id: number) {
-  return staff.find((s) => s.id === id);
-}

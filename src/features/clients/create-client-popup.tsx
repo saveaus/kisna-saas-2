@@ -1,37 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Tag, User, UserRound, Users, Wallet, MapPin } from "lucide-react";
+import { Calendar, MapPin, Tag, User, UserRound, Users, Wallet } from "lucide-react";
 import { ChipSelect, DateChip, Popup } from "@/components/popup/popup";
-import {
-  CLASSIFICATIONS,
-  FUNDING_TYPES,
-  GENDERS,
-  LEVELS,
-  NDIS_TYPES,
-} from "@/lib/fields";
-import { staff, type ClientRecord, type FieldValue } from "@/lib/demo-data";
+import { CLASSIFICATIONS, FUNDING_TYPES, GENDERS, LEVELS, NDIS_TYPES } from "@/lib/fields";
+import type { FieldValue, StaffOption } from "@/lib/records";
 
 type Draft = Record<string, FieldValue>;
 
-const staffNames = staff.filter((s) => s.status === "Active").map((s) => s.name);
+export type CreateClientInput = {
+  record: Draft;
+  careManagerId?: number;
+  schedulerId?: number;
+};
 
 /** Create client, laid out like Lightfield's task adder. */
 export function CreateClientPopup({
   open,
   onClose,
   onCreate,
+  staffOptions,
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (client: ClientRecord) => void;
+  /** Resolves to an error message, or undefined on success. */
+  onCreate: (input: CreateClientInput) => Promise<string | undefined>;
+  staffOptions: StaffOption[];
 }) {
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
   const [draft, setDraft] = useState<Draft>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
 
-  const set = (key: string) => (value: FieldValue) =>
-    setDraft((d) => ({ ...d, [key]: value }));
+  const set = (key: string) => (value: FieldValue) => setDraft((d) => ({ ...d, [key]: value }));
+  const staffNames = staffOptions.map((s) => s.name);
+  const idFor = (name: FieldValue) => staffOptions.find((s) => s.name === name)?.id;
 
   const funding = draft.fundingType as string | undefined;
   const isNdis = funding === "NDIS";
@@ -39,6 +43,7 @@ export function CreateClientPopup({
     setName("");
     setNotes("");
     setDraft({});
+    setError(undefined);
   };
 
   return (
@@ -56,20 +61,27 @@ export function CreateClientPopup({
       description={notes}
       onDescriptionChange={setNotes}
       descriptionPlaceholder="General notes"
-      submitLabel="Create client"
-      canSubmit={name.trim().length > 0 && Boolean(funding)}
-      onSubmit={() => {
-        onCreate({
-          id: 0,
-          name: name.trim(),
-          status: "Active",
-          ...draft,
-          generalNotes: notes || undefined,
-          // Funding type decides which of these applies
-          ndisType: isNdis ? draft.ndisType : undefined,
-          level: isNdis ? undefined : draft.level,
+      submitLabel={busy ? "Creating…" : "Create client"}
+      canSubmit={!busy && name.trim().length > 0 && Boolean(funding)}
+      error={error}
+      onSubmit={async () => {
+        setBusy(true);
+        const { careManager, scheduler, ...rest } = draft;
+        const err = await onCreate({
+          record: {
+            ...rest,
+            name: name.trim(),
+            generalNotes: notes || undefined,
+            // Funding type decides which of these applies
+            ndisType: isNdis ? draft.ndisType : undefined,
+            level: isNdis ? undefined : draft.level,
+          },
+          careManagerId: idFor(careManager),
+          schedulerId: idFor(scheduler),
         });
-        reset();
+        setBusy(false);
+        if (err) setError(err);
+        else reset();
       }}
       chips={
         <>

@@ -4,7 +4,7 @@ import { Calendar, Hash, MapPin, Tag, User, Users } from "lucide-react";
 import { DataTable, type Column } from "@/components/table/data-table";
 import { Chip } from "@/components/ui/primitives";
 import { formatDate } from "@/components/popup/popup";
-import { sites, type SiteRecord } from "@/lib/demo-data";
+import type { SiteRecord } from "@/lib/records";
 
 const columns: Column<SiteRecord>[] = [
   { key: "name", label: "Site Name", icon: MapPin, width: 220 },
@@ -31,6 +31,6 @@ const columns: Column<SiteRecord>[] = [
 ];
 
 /** Sites list. Site records and Create site arrive in Step 3. */
-export function SitesView() {
-  return <DataTable title="Sites" icon={MapPin} noun="site" columns={columns} rows={sites} />;
+export function SitesView({ rows }: { rows: SiteRecord[] }) {
+  return <DataTable title="Sites" icon={MapPin} noun="site" columns={columns} rows={rows} />;
 }
