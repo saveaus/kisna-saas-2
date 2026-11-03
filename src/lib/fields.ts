@@ -330,10 +330,20 @@ export const ROLES = [
 
 export const EMPLOYMENT_TYPES = ["Employee", "Contractor"] as const;
 
+export const STAFF_STATUSES = ["Active", "Inactive"] as const;
+
 export const STAFF_SECTIONS: FieldSection[] = [
   {
     title: "Contact & Employment",
     fields: [
+      { key: "name", label: "Name", type: "text", required: true },
+      {
+        key: "status",
+        label: "Status",
+        type: "select",
+        required: true,
+        options: STAFF_STATUSES,
+      },
       { key: "employeeId", label: "Employee ID", type: "text", calculated: true },
       { key: "email", label: "Email", type: "email", required: true },
       { key: "phone", label: "Phone", type: "phone", required: true },
@@ -357,6 +367,7 @@ export const STAFF_SECTIONS: FieldSection[] = [
         label: "Access Business",
         type: "relation",
         required: true,
+        calculated: true,
       },
     ],
   },
@@ -391,10 +402,12 @@ export const STAFF_SECTIONS: FieldSection[] = [
     fields: [
       { key: "abn", label: "ABN", type: "text" },
       { key: "tradingName", label: "Trading Name", type: "text" },
-      { key: "payGroup", label: "Pay group", type: "relation" },
+      { key: "payGroup", label: "Pay group", type: "relation", arrives: "Phase 4" },
     ],
   },
 ];
+
+export const STAFF_FIELDS: FieldDef[] = STAFF_SECTIONS.flatMap((s) => s.fields);
 
 /** Staff record → Employment tab (Imploy). */
 export const STAFF_EMPLOYMENT_FIELDS: FieldDef[] = [

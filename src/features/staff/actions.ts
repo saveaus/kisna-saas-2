@@ -8,8 +8,13 @@ import { roleKeyFromLabel } from "@/lib/permissions";
 import { STAFF_COLUMNS, toRow, type FieldValue } from "@/lib/records";
 import { EMPLOYMENT_TYPES } from "@/lib/fields";
 import { siteUrl } from "@/lib/site-url";
+import { validateStaffField } from "./validate";
 
 export type ActionResult = { ok: true; id: number } | { ok: false; error: string };
+export type SaveResult = { ok: true } | { ok: false; error: string };
+
+const isId = (id: unknown): id is number =>
+  typeof id === "number" && Number.isSafeInteger(id) && id > 0;
 
 /** Add a staff member. Needs Manage Users: full access. */
 export async function createStaffAction(
@@ -52,6 +57,73 @@ export async function createStaffAction(
   }
   revalidatePath("/staff");
   return { ok: true, id: Number(data.id) };
+}
+
+/**
+ * Save one field from a staff member's Details panel. Needs Manage Users: full.
+ * The database also stops anyone but a superadmin changing a superadmin.
+ */
+export async function updateStaffFieldAction(input: {
+  staffId: number;
+  key: string;
+  value: FieldValue;
+}): Promise<SaveResult> {
+  // Outside try/catch so an expired session can redirect to /login.
+  const check = await checkPermission("staff", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+  const session = check.session;
+
+  if (!isId(input.staffId)) return { ok: false, error: "Staff member not found." };
+  const valid = validateStaffField(input.key, input.value);
+  if (!valid.ok) return valid;
+
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("staff")
+    .select("role, user_id")
+    .eq("workspace_id", session.workspaceId)
+    .eq("id", input.staffId)
+    .maybeSingle();
+  if (!person) return { ok: false, error: "Staff member not found." };
+
+  if (person.role === "superadmin" && session.role !== "superadmin") {
+    return { ok: false, error: "Only a superadmin can change a superadmin's record." };
+  }
+  if ((input.key === "role" || input.key === "status") && input.staffId === session.staffId) {
+    return { ok: false, error: "You can't change your own role or status." };
+  }
+  if (input.key === "email" && person.user_id) {
+    return { ok: false, error: "This person signs in with this email, so it can't be changed here yet." };
+  }
+
+  let value = valid.value;
+  if (input.key === "email") value = String(value).toLowerCase();
+  if (input.key === "role") {
+    const role = roleKeyFromLabel(String(value));
+    if (!role) return { ok: false, error: "Choose a role." };
+    if (role === "superadmin" && session.role !== "superadmin") {
+      return { ok: false, error: "Only a superadmin can add another superadmin." };
+    }
+    value = role;
+  }
+
+  const { data, error } = await supabase
+    .from("staff")
+    .update(toRow({ [input.key]: value }, STAFF_COLUMNS))
+    .eq("workspace_id", session.workspaceId)
+    .eq("id", input.staffId)
+    .select("id");
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === "23505" ? "Someone in this workspace already uses that email." : error.message,
+    };
+  }
+  if (!data.length) return { ok: false, error: "Staff member not found." };
+
+  revalidatePath(`/staff/${input.staffId}`);
+  revalidatePath("/staff");
+  return { ok: true };
 }
 
 /**

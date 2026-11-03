@@ -11,11 +11,18 @@ import {
   StickyNote,
   Wallet,
 } from "lucide-react";
-import { RecordView } from "@/components/record/record-view";
+import { RecordView, type RecordEditing } from "@/components/record/record-view";
 import { Chip, EmptyState } from "@/components/ui/primitives";
 import type { StaffRecord } from "@/lib/records";
 import { InviteButton } from "./invite-button";
-import { STAFF_DOCUMENT_TYPES, STAFF_EMPLOYMENT_FIELDS, STAFF_SECTIONS } from "@/lib/fields";
+import {
+  ROLES,
+  STAFF_DOCUMENT_TYPES,
+  STAFF_EMPLOYMENT_FIELDS,
+  STAFF_SECTIONS,
+  isFieldEditable,
+} from "@/lib/fields";
+import { updateStaffFieldAction } from "./actions";
 import { roleTone } from "./staff-view";
 
 function Highlight({ label, value }: { label: string; value?: string }) {
@@ -36,11 +43,37 @@ const soon = (icon: typeof Wallet, title: string, when: string) => (
 export function StaffRecordView({
   person,
   canInvite,
+  canEdit,
+  viewerIsSuperadmin,
+  viewerStaffId,
 }: {
   person: StaffRecord;
   canInvite: boolean;
+  /** Manage Users: full. */
+  canEdit: boolean;
+  viewerIsSuperadmin: boolean;
+  viewerStaffId: number;
 }) {
   const nationality = Array.isArray(person.nationality) ? person.nationality.join(", ") : undefined;
+
+  // Matches the rules in updateStaffFieldAction and the database.
+  const isSelf = person.id === viewerStaffId;
+  const editing: RecordEditing | undefined =
+    canEdit && (viewerIsSuperadmin || person.role !== "Superadmin")
+      ? {
+          options: { role: viewerIsSuperadmin ? ROLES : ROLES.filter((r) => r !== "Superadmin") },
+          canEdit: (field) => {
+            if (!isFieldEditable(field)) return false;
+            if (field.key === "email" && person.hasLogin === "Linked") return false;
+            if ((field.key === "role" || field.key === "status") && isSelf) return false;
+            return true;
+          },
+          onSave: async (field, value) => {
+            const result = await updateStaffFieldAction({ staffId: person.id, key: field.key, value });
+            return result.ok ? undefined : result.error;
+          },
+        }
+      : undefined;
 
   return (
     <RecordView
@@ -52,6 +85,7 @@ export function StaffRecordView({
       detailsTitle="Staff details"
       sections={STAFF_SECTIONS}
       record={{ ...person, employeeId: String(person.id) }}
+      editing={editing}
       related={[
         { title: "Upcoming shifts", items: [], empty: "Roster arrives in Phase 2" },
         { title: "Clients", items: [], empty: "Client assignments arrive in Step 4" },
@@ -83,7 +117,6 @@ export function StaffRecordView({
             </div>
           ),
         },
-        { key: "notes", label: "Notes", icon: StickyNote, content: soon(StickyNote, "Staff notes", "Step 4") },
         {
           key: "compliance",
           label: "Compliance",
@@ -104,9 +137,6 @@ export function StaffRecordView({
             </div>
           ),
         },
-        { key: "files", label: "Files", icon: Files, content: soon(Files, "Files", "Step 4") },
-        { key: "leave", label: "Leave", icon: CalendarOff, content: soon(CalendarOff, "Leave requests", "Phase 2") },
-        { key: "availability", label: "Availability", icon: CalendarDays, content: soon(CalendarDays, "Availability", "Phase 2") },
         {
           key: "employment",
           label: "Employment",
@@ -122,8 +152,12 @@ export function StaffRecordView({
             </div>
           ),
         },
-        { key: "finance", label: "Finance", icon: Wallet, content: soon(Wallet, "Pay and claims", "Phase 4") },
-        { key: "activity", label: "Activity", icon: Activity, content: soon(Activity, "Activity history", "Step 4") },
+        { key: "notes", label: "Notes", icon: StickyNote, more: true, content: soon(StickyNote, "Staff notes", "Step 4") },
+        { key: "files", label: "Files", icon: Files, more: true, content: soon(Files, "Files", "Step 4") },
+        { key: "activity", label: "Activity", icon: Activity, more: true, content: soon(Activity, "Activity history", "Step 4") },
+        { key: "leave", label: "Leave", icon: CalendarOff, more: true, content: soon(CalendarOff, "Leave requests", "Phase 2") },
+        { key: "availability", label: "Availability", icon: CalendarDays, more: true, content: soon(CalendarDays, "Availability", "Phase 2") },
+        { key: "finance", label: "Finance", icon: Wallet, more: true, content: soon(Wallet, "Pay and claims", "Phase 4") },
       ]}
     />
   );
