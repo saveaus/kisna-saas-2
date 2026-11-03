@@ -11,6 +11,16 @@ const AUTH_STUB = `
   create role anon nologin;
   create role authenticated nologin;
   create role service_role nologin bypassrls;
+
+  -- Supabase gives these roles everything on anything new in public, so the
+  -- tests must too, or a grant that's too broad would only show up in production.
+  alter default privileges for role postgres in schema public
+    grant all on tables to anon, authenticated, service_role;
+  alter default privileges for role postgres in schema public
+    grant all on functions to anon, authenticated, service_role;
+  alter default privileges for role postgres in schema public
+    grant all on sequences to anon, authenticated, service_role;
+
   create schema auth;
   create table auth.users (id uuid primary key, email text);
   create function auth.uid() returns uuid language sql stable as $$

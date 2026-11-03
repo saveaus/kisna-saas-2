@@ -402,14 +402,3 @@ grant execute on function public.client_activity(bigint, integer) to authenticat
 
 revoke all on all functions in schema private from public, anon;
 grant execute on all functions in schema private to authenticated;
-
--- This project doesn't hand new tables to the API roles automatically (anon was
--- refused saved_views with no revoke in place), so the service role, used by
--- the seed script, gets its access spelled out. Harmless where it's already
--- granted. It stays read-only on the audit log.
-grant select, insert, update, delete on
-  public.workspaces, public.staff, public.clients, public.client_financials,
-  public.client_team, public.sites, public.role_permissions, public.saved_views,
-  public.client_notes, public.client_contacts, public.client_files
-  to service_role;
-grant select on public.audit_log to service_role;
