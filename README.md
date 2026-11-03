@@ -36,8 +36,9 @@ You need Node.js 20.9 or newer.
    ```bash
    npm run seed
    ```
-   This creates a "Demo Provider" workspace with one login per role and
-   prints the email and password for each.
+   This fills the development workspace (or creates "Demo Provider" if the
+   project is empty) with fictional clients, staff and sites, plus one login
+   per role. It prints the email and password for each.
 7. **Run it**
    ```bash
    npm run dev

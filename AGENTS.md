@@ -48,6 +48,9 @@ the build order (Phase 1 plan).
 - Read `docs/access-model.md` before touching tables, roles or permissions.
 - Development database only. No real participant data until role-based
   database rules are in place and tested for every role.
+- When a feature stores records, add fictional examples to `src/lib/demo-data.ts`
+  and insert them from `scripts/seed.ts`, then run the seed against the
+  development project so the screens can be tested with data.
 - Every table gets row level security from the start, checking role and
   permission area (`private.can`), not just workspace membership. Add tests
   for each role in `supabase/tests` whenever you add a table.

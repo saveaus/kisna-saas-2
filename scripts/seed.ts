@@ -12,7 +12,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
-import { clients, sites, staff } from "../src/lib/demo-data";
+import { clientFinancials, clientTeams, clients, demoViews, sites, staff } from "../src/lib/demo-data";
 import { CLIENT_COLUMNS, SITE_COLUMNS, STAFF_COLUMNS, toRow } from "../src/lib/records";
 import { roleKeyFromLabel } from "../src/lib/permissions";
 
@@ -32,14 +32,11 @@ const password = process.env.SEED_PASSWORD || `Demo-${randomBytes(6).toString("h
 // Demo staff who get a login, by name → login email.
 const LOGINS: Record<string, string> = {
   "Alex Morgan": "superadmin@example.com",
-  "Demo Service Manager": "manager@example.com",
-  "Demo Scheduler": "scheduler@example.com",
+  "Maya Chen": "manager@example.com",
+  "Sam Okonkwo": "scheduler@example.com",
   "Jordan Hale": "worker@example.com",
 };
 const SUPERADMIN = "Alex Morgan";
-// Clients the demo support worker works with.
-const WORKER = "Jordan Hale";
-const WORKER_CLIENTS = ["Amira Hassan", "Noah Bennett"];
 
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -104,14 +101,19 @@ async function main() {
 
   const db = await signIn(LOGINS[SUPERADMIN]);
 
-  // Workspace (created by the superadmin, who becomes its first member).
-  const mine = await must(
-    db.from("staff").select("id, workspace_id").eq("user_id", userIds[SUPERADMIN]).limit(1),
-  );
+  // Prefer the workspace already on this project (the signed-up account).
+  // Create "Demo Provider" only when the project has no workspace yet.
+  const { data: existingWs, error: wsError } = await admin
+    .from("workspaces")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (wsError) throw new Error(wsError.message);
+
   let workspaceId: string;
-  if (mine.length) {
-    workspaceId = mine[0].workspace_id;
-    console.log("Demo Provider workspace already exists; adding anything missing.");
+  if (existingWs?.length) {
+    workspaceId = existingWs[0].id;
+    console.log("Using the existing workspace; adding anything missing.");
   } else {
     console.log("Creating the Demo Provider workspace…");
     workspaceId = (await must(
@@ -136,8 +138,26 @@ async function main() {
       // Fill in the superadmin's demo details (role stays superadmin).
       const { role: _role, ...rest } = details;
       void _role;
-      const me = existingStaff.find((s) => s.name === SUPERADMIN) ??
-        (await must(db.from("staff").select("id, name, email").eq("user_id", userIds[SUPERADMIN]).limit(1)))[0];
+      const me = existingStaff.find((s) => s.name === SUPERADMIN);
+      if (!me) {
+        // Not a member yet (seeding into an existing account). Service role
+        // bypasses the "must already belong" check for this first link.
+        const row = await must(
+          admin
+            .from("staff")
+            .insert({
+              ...rest,
+              email: LOGINS[SUPERADMIN],
+              role: "superadmin",
+              workspace_id: workspaceId,
+              user_id: userIds[SUPERADMIN],
+            })
+            .select("id")
+            .single(),
+        );
+        staffIds[SUPERADMIN] = Number(row.id);
+        continue;
+      }
       await must(db.from("staff").update({ ...rest, email: LOGINS[SUPERADMIN] }).eq("id", me.id));
       staffIds[SUPERADMIN] = Number(me.id);
       continue;
@@ -176,14 +196,38 @@ async function main() {
       );
       clientIds[client.name] = Number(row.id);
     }
-    if (WORKER_CLIENTS.includes(client.name)) {
-      await must(
-        db.from("client_team").upsert(
-          { client_id: clientIds[client.name], staff_id: staffIds[WORKER], workspace_id: workspaceId },
-          { onConflict: "client_id,staff_id", ignoreDuplicates: true },
-        ),
-      );
-    }
+  }
+
+  for (const link of clientTeams) {
+    const clientId = clientIds[link.client];
+    const staffId = staffIds[link.staff];
+    if (!clientId || !staffId) continue;
+    await must(
+      db.from("client_team").upsert(
+        { client_id: clientId, staff_id: staffId, workspace_id: workspaceId, kind: link.kind },
+        { onConflict: "client_id,staff_id" },
+      ),
+    );
+  }
+
+  console.log("Bank details…");
+  for (const fin of clientFinancials) {
+    const clientId = clientIds[fin.client];
+    if (!clientId) continue;
+    await must(
+      db.from("client_financials").upsert(
+        {
+          client_id: clientId,
+          workspace_id: workspaceId,
+          bank_name: fin.bankName,
+          bsb: fin.bsb,
+          account_number: fin.accountNumber,
+          itf_status: fin.itfStatus ?? null,
+          itf_value: fin.itfValue ?? null,
+        },
+        { onConflict: "client_id" },
+      ),
+    );
   }
 
   console.log("Sites…");
@@ -197,6 +241,37 @@ async function main() {
         manager_id: staffIds[String(site.manager)] ?? null,
       }),
     );
+  }
+
+  console.log("Saved views…");
+  const supers = await must(
+    admin
+      .from("staff")
+      .select("user_id")
+      .eq("workspace_id", workspaceId)
+      .eq("role", "superadmin")
+      .not("user_id", "is", null),
+  );
+  for (const person of supers) {
+    for (const view of demoViews) {
+      const { data: existing } = await admin
+        .from("saved_views")
+        .select("id")
+        .eq("user_id", person.user_id)
+        .eq("workspace_id", workspaceId)
+        .eq("object", view.object)
+        .eq("name", view.name)
+        .limit(1);
+      if (existing?.length) continue;
+      const { error } = await admin.from("saved_views").insert({
+        workspace_id: workspaceId,
+        user_id: person.user_id,
+        object: view.object,
+        name: view.name,
+        filters: view.filters,
+      });
+      if (error) throw new Error(error.message);
+    }
   }
 
   console.log("\nDone. Sign in at http://localhost:3000 with any of these:\n");
