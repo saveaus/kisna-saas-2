@@ -45,6 +45,9 @@ describe("describeActivity", () => {
     expect(describeActivity(row({ table_name: "client_files", action: "DELETE", label: "plan.pdf" }))).toBe(
       "Deleted plan.pdf",
     );
+    expect(
+      describeActivity(row({ table_name: "client_files", action: "UPDATE", label: "plan.pdf", changed_fields: ["shared_with_team"] })),
+    ).toBe("Changed who can see plan.pdf");
     expect(describeActivity(row({ table_name: "client_contacts", action: "INSERT", label: "Helen" }))).toBe(
       "Added contact Helen",
     );

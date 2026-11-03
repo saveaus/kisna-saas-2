@@ -87,6 +87,19 @@ beforeAll(async () => {
   });
 });
 
+type ActivityRow = {
+  id: number;
+  actor_name: string;
+  table_name: string;
+  action: string;
+  changed_fields: string[];
+  label: string | null;
+};
+
+const activity = (client: number) => (
+  q: <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>,
+) => q<ActivityRow>("select * from public.client_activity($1)", [client]);
+
 const addNote = (client: number, body: string, workspace = ws) => async (
   q: <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>,
 ) => {
@@ -334,32 +347,158 @@ describe("client files", () => {
     });
   });
 
-  it("support workers open files on their own clients only", async () => {
-    await as(db, MANAGER, addFile(clientB, "record-b"));
-    await as(db, WORKER, async (q) => {
-      expect((await visible(path(clientA, "file-1"))(q)).length).toBe(1);
-      expect((await visible(path(clientB, "file-b"))(q)).length).toBe(0);
-      const rows = await q<{ client_id: number }>("select client_id from public.client_files");
-      expect(rows.every((r) => Number(r.client_id) === clientA)).toBe(true);
-    });
-  });
+  const setShared = (id: string, shared: boolean) => (
+    q: <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>,
+  ) =>
+    q("update public.client_files set shared_with_team = $1 where storage_path = $2 returning id", [shared, id]);
 
-  it("support workers lose access to files when marked do-not-send", async () => {
-    await as(db, ADMIN, (q) =>
-      q("update public.client_team set kind = 'do_not_send' where client_id = $1 and staff_id = $2", [
-        clientA,
-        workerStaffId,
-      ]),
-    );
-    await as(db, WORKER, async (q) => {
-      expect((await visible(path(clientA, "file-1"))(q)).length).toBe(0);
+  describe("sharing with support workers", () => {
+    it("new files start private, even on the worker's own client", async () => {
+      await as(db, WORKER, async (q) => {
+        expect((await q("select id from public.client_files where storage_path = $1", [path(clientA, "file-1")])).length).toBe(0);
+        expect((await visible(path(clientA, "file-1"))(q)).length).toBe(0);
+      });
     });
-    await as(db, ADMIN, (q) =>
-      q("update public.client_team set kind = 'team' where client_id = $1 and staff_id = $2", [
-        clientA,
-        workerStaffId,
-      ]),
-    );
+
+    it("managers and schedulers see private files regardless", async () => {
+      for (const user of [ADMIN, MANAGER, SCHEDULER]) {
+        await as(db, user, async (q) => {
+          expect((await q("select id from public.client_files where storage_path = $1", [path(clientA, "file-1")])).length).toBe(1);
+          expect((await visible(path(clientA, "file-1"))(q)).length).toBe(1);
+        });
+      }
+    });
+
+    it("sharing opens both the record and the stored file; unsharing closes them", async () => {
+      expect((await as(db, MANAGER, setShared(path(clientA, "file-1"), true))).length).toBe(1);
+      await as(db, WORKER, async (q) => {
+        expect((await q("select id from public.client_files where storage_path = $1", [path(clientA, "file-1")])).length).toBe(1);
+        expect((await visible(path(clientA, "file-1"))(q)).length).toBe(1);
+      });
+      await as(db, MANAGER, setShared(path(clientA, "file-1"), false));
+      await as(db, WORKER, async (q) => {
+        expect((await q("select id from public.client_files where storage_path = $1", [path(clientA, "file-1")])).length).toBe(0);
+        expect((await visible(path(clientA, "file-1"))(q)).length).toBe(0);
+      });
+    });
+
+    it("a shared file stays hidden from workers who aren't on that client's team", async () => {
+      await as(db, MANAGER, addFile(clientB, "shared-b"));
+      await as(db, MANAGER, upload(path(clientB, "shared-b")));
+      await as(db, MANAGER, setShared(path(clientB, "shared-b"), true));
+      await as(db, WORKER, async (q) => {
+        expect((await q("select id from public.client_files where storage_path = $1", [path(clientB, "shared-b")])).length).toBe(0);
+        expect((await visible(path(clientB, "shared-b"))(q)).length).toBe(0);
+      });
+    });
+
+    it("a stored file with no record is hidden from workers", async () => {
+      await as(db, MANAGER, upload(path(clientA, "mid-upload")));
+      await as(db, WORKER, async (q) => {
+        expect((await visible(path(clientA, "mid-upload"))(q)).length).toBe(0);
+      });
+    });
+
+    it("a file can't borrow another file's sharing by pointing at it", async () => {
+      // A shared row in client A's folder must not open the same-named path elsewhere.
+      await as(db, MANAGER, addFile(clientA, "shared-a"));
+      await as(db, MANAGER, setShared(path(clientA, "shared-a"), true));
+      await as(db, MANAGER, upload(path(clientB, "shared-a")));
+      await as(db, WORKER, async (q) => {
+        expect((await visible(path(clientB, "shared-a"))(q)).length).toBe(0);
+      });
+    });
+
+    it("workers lose shared files when marked do-not-send", async () => {
+      await as(db, MANAGER, setShared(path(clientA, "file-1"), true));
+      await as(db, ADMIN, (q) =>
+        q("update public.client_team set kind = 'do_not_send' where client_id = $1 and staff_id = $2", [
+          clientA,
+          workerStaffId,
+        ]),
+      );
+      await as(db, WORKER, async (q) => {
+        expect((await visible(path(clientA, "file-1"))(q)).length).toBe(0);
+      });
+      await as(db, ADMIN, (q) =>
+        q("update public.client_team set kind = 'team' where client_id = $1 and staff_id = $2", [
+          clientA,
+          workerStaffId,
+        ]),
+      );
+      await as(db, MANAGER, setShared(path(clientA, "file-1"), false));
+    });
+
+    it("only people with full access can change sharing", async () => {
+      expect((await as(db, SCHEDULER, setShared(path(clientA, "file-1"), true))).length).toBe(0);
+      expect((await as(db, WORKER, setShared(path(clientA, "file-1"), true))).length).toBe(0);
+      expect((await as(db, OUTSIDER, setShared(path(clientA, "file-1"), true))).length).toBe(0);
+      await as(db, ADMIN, async (q) => {
+        const [row] = await q<{ shared_with_team: boolean }>(
+          "select shared_with_team from public.client_files where storage_path = $1",
+          [path(clientA, "file-1")],
+        );
+        expect(row.shared_with_team).toBe(false);
+      });
+    });
+
+    it("sharing can't be set while changing anything else about the file", async () => {
+      await expect(
+        as(db, MANAGER, (q) =>
+          q("update public.client_files set shared_with_team = true, storage_path = 'x' where storage_path = $1", [
+            path(clientA, "file-1"),
+          ]),
+        ),
+      ).rejects.toThrow(/permission denied/);
+    });
+
+    it("a private file's name never reaches a worker through the history", async () => {
+      const SECRET_NAME = "Private psychologist report.pdf";
+      const id = "secret-report";
+      await as(db, MANAGER, async (q) => {
+        await q(
+          `insert into public.client_files (workspace_id, client_id, name, storage_path, size_bytes, mime_type)
+           values ($1, $2, $3, $4, 1024, 'application/pdf')`,
+          [ws, clientA, SECRET_NAME, path(clientA, id)],
+        );
+      });
+      const fileRows = (rows: { table_name: string; label: string | null }[]) =>
+        rows.filter((r) => r.table_name === "client_files" && r.label === SECRET_NAME);
+
+      await as(db, SCHEDULER, async (q) => {
+        expect(fileRows(await activity(clientA)(q)).length).toBe(1);
+      });
+      await as(db, WORKER, async (q) => {
+        const rows = await activity(clientA)(q);
+        expect(JSON.stringify(rows)).not.toContain(SECRET_NAME);
+      });
+
+      await as(db, MANAGER, setShared(path(clientA, id), true));
+      await as(db, WORKER, async (q) => {
+        const rows = fileRows(await activity(clientA)(q));
+        expect(rows.map((r) => r.table_name)).toContain("client_files");
+      });
+      await as(db, MANAGER, async (q) => {
+        const [update] = (await activity(clientA)(q)).filter(
+          (r) => r.table_name === "client_files" && r.action === "UPDATE" && r.label === SECRET_NAME,
+        );
+        expect(update.changed_fields).toEqual(["shared_with_team"]);
+      });
+
+      // Unsharing hides it again, and so does deleting it.
+      await as(db, MANAGER, setShared(path(clientA, id), false));
+      await as(db, WORKER, async (q) => {
+        expect(JSON.stringify(await activity(clientA)(q))).not.toContain(SECRET_NAME);
+      });
+      await as(db, MANAGER, (q) => q("delete from public.client_files where storage_path = $1", [path(clientA, id)]));
+      await as(db, WORKER, async (q) => {
+        expect(JSON.stringify(await activity(clientA)(q))).not.toContain(SECRET_NAME);
+      });
+      await as(db, MANAGER, async (q) => {
+        const rows = (await activity(clientA)(q)).filter((r) => r.action === "DELETE" && r.label === SECRET_NAME);
+        expect(rows.length).toBe(1);
+      });
+    });
   });
 
   it("can be deleted with full access", async () => {
@@ -433,19 +572,6 @@ describe("client files", () => {
     await expect(as(db, null, upload(path(clientA, "no-7")))).rejects.toThrow(/row-level security/);
   });
 });
-
-type ActivityRow = {
-  id: number;
-  actor_name: string;
-  table_name: string;
-  action: string;
-  changed_fields: string[];
-  label: string | null;
-};
-
-const activity = (client: number) => (
-  q: <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>,
-) => q<ActivityRow>("select * from public.client_activity($1)", [client]);
 
 describe("activity history", () => {
   const SECRET_PHONE = "0499 SECRET";

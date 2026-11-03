@@ -413,6 +413,34 @@ export async function finishClientFileUploadAction(input: UploadInput & { path: 
   return { ok: true };
 }
 
+/** Share a file with support workers on this client's team, or make it private again. */
+export async function setClientFileSharedAction(input: {
+  clientId: number;
+  fileId: number;
+  shared: boolean;
+}): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  if (!isId(input.clientId) || !isId(input.fileId) || typeof input.shared !== "boolean") {
+    return { ok: false, error: "File not found." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("client_files")
+    .update({ shared_with_team: input.shared })
+    .eq("workspace_id", check.session.workspaceId)
+    .eq("client_id", input.clientId)
+    .eq("id", input.fileId)
+    .select("id");
+  if (error) return { ok: false, error: friendly(error) };
+  if (!data.length) return { ok: false, error: "File not found." };
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
 export async function deleteClientFileAction(input: { clientId: number; fileId: number }): Promise<SaveResult> {
   const check = await checkPermission("clients_sites", "full");
   if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };

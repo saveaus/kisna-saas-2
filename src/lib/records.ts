@@ -52,6 +52,8 @@ export type FileItem = {
   mimeType: string;
   uploadedBy: string;
   when: string;
+  /** Support workers on this client's team can see it. */
+  shared: boolean;
 };
 export type StaffOption = { id: number; name: string };
 

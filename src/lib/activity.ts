@@ -56,7 +56,9 @@ export function describeActivity(row: ActivityRow) {
     }
     case "client_files": {
       const file = label ?? "a file";
-      return action === "DELETE" ? `Deleted ${file}` : `Uploaded ${file}`;
+      if (action === "DELETE") return `Deleted ${file}`;
+      if (action === "UPDATE") return `Changed who can see ${file}`;
+      return `Uploaded ${file}`;
     }
     default:
       return "Updated this client";

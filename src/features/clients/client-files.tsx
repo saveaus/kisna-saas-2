@@ -1,15 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Calendar, FileText, Files, HardDrive, Upload, User } from "lucide-react";
+import { Calendar, Eye, FileText, Files, HardDrive, Upload, User } from "lucide-react";
 import { DataTable, type Column } from "@/components/table/data-table";
-import { Button, ConfirmDelete, EmptyState } from "@/components/ui/primitives";
+import { Button, Chip, ConfirmDelete, EmptyState } from "@/components/ui/primitives";
 import { CLIENT_FILE_ACCEPT, CLIENT_FILES_BUCKET } from "@/lib/fields";
 import type { FileItem } from "@/lib/records";
 import { createClient } from "@/lib/supabase/browser";
 import {
   deleteClientFileAction,
   finishClientFileUploadAction,
+  setClientFileSharedAction,
   startClientFileUploadAction,
 } from "./actions";
 
@@ -37,6 +38,38 @@ async function uploadFile(clientId: number, file: File) {
     path: start.path,
   });
   return finish.ok ? undefined : `${start.name}: ${finish.error}`;
+}
+
+function SharedChip({ shared }: { shared: boolean }) {
+  return <Chip tone={shared ? "green" : "neutral"}>{shared ? "Shared" : "Private"}</Chip>;
+}
+
+function SharingControl({ clientId, file }: { clientId: number; file: FileItem }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <span className="inline-flex items-center gap-1">
+      <SharedChip shared={file.shared} />
+      <Button
+        variant="bare"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(undefined);
+          const result = await setClientFileSharedAction({
+            clientId,
+            fileId: file.id,
+            shared: !file.shared,
+          });
+          setBusy(false);
+          if (!result.ok) setError(result.error);
+        }}
+      >
+        {file.shared ? "Make private" : "Share"}
+      </Button>
+      {error && <span className="text-[12px] text-[var(--red-ink)]">{error}</span>}
+    </span>
+  );
 }
 
 function DeleteFile({ clientId, fileId }: { clientId: number; fileId: number }) {
@@ -108,6 +141,16 @@ export function ClientFiles({
     },
     { key: "uploadedBy", label: "Uploaded by", icon: User, width: 170 },
     { key: "when", label: "Uploaded", icon: Calendar, width: 140 },
+    {
+      key: "shared",
+      label: "Support workers",
+      icon: Eye,
+      width: 190,
+      filterOptions: ["Shared", "Private"],
+      value: (f) => (f.shared ? "Shared" : "Private"),
+      render: (f) =>
+        canEdit ? <SharingControl clientId={clientId} file={f} /> : <SharedChip shared={f.shared} />,
+    },
     ...(canEdit
       ? [
           {
@@ -141,7 +184,7 @@ export function ClientFiles({
             {uploading ? "Uploading…" : "Upload file"}
           </Button>
           <span className="truncate text-[12px] text-ink-4">
-            {uploading ?? "PDF, photo, Word, Excel, CSV or text, up to 25 MB"}
+            {uploading ?? "PDF, photo, Word, Excel, CSV or text, up to 25 MB. Private until you share it."}
           </span>
         </div>
       )}
@@ -151,7 +194,7 @@ export function ClientFiles({
         </p>
       ))}
       {files.length === 0 ? (
-        <EmptyState icon={Files} title="No files yet" body="Files are private to people who can see this client." />
+        <EmptyState icon={Files} title="No files yet" body="Support workers only see files that have been shared with them." />
       ) : (
         <DataTable embedded title="Files" icon={Files} noun="file" columns={columns} rows={files} />
       )}

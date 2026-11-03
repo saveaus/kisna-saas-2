@@ -271,8 +271,7 @@ export function clientTypeLevel(record: Record<string, unknown>) {
 }
 
 /* ---------- Client contacts ----------
- * Not in Imploy's field list: the brief names family, coordinators and plan
- * managers, so these fields need confirming against Imploy's Contacts tab.
+ * Not in Imploy's field list. Izak confirmed these fields, 3 Nov 2026.
  */
 
 export const CONTACT_TYPES = ["Family", "Support Coordinator", "Plan Manager", "Other"] as const;

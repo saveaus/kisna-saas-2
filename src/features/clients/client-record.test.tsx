@@ -41,7 +41,8 @@ const contacts: ContactItem[] = [
   { id: 2, name: "Daniel Foster", contactType: "Support Coordinator" },
 ];
 const files: FileItem[] = [
-  { id: 9, name: "plan.pdf", size: 2048, mimeType: "application/pdf", uploadedBy: "Maya Chen", when: "just now" },
+  { id: 9, name: "plan.pdf", size: 2048, mimeType: "application/pdf", uploadedBy: "Maya Chen", when: "just now", shared: false },
+  { id: 10, name: "roster.pdf", size: 10, mimeType: "application/pdf", uploadedBy: "Maya Chen", when: "just now", shared: true },
 ];
 const activity: ActivityItem[] = [{ id: 1, what: "Updated Phone", who: "Maya Chen", when: "just now" }];
 
@@ -177,6 +178,19 @@ describe("files tab", () => {
     expect(renderFiles(false)).not.toContain("Upload file");
     expect(renderFiles(false)).not.toContain(">Delete<");
     expect(renderFiles(false)).toContain("plan.pdf");
+  });
+
+  it("shows whether each file is shared, and lets editors change it", () => {
+    const editor = renderFiles(true);
+    expect(editor).toContain(">Private<");
+    expect(editor).toContain(">Shared<");
+    expect(editor).toContain(">Share<");
+    expect(editor).toContain(">Make private<");
+
+    const reader = renderFiles(false);
+    expect(reader).toContain(">Private<");
+    expect(reader).not.toContain(">Share<");
+    expect(reader).not.toContain(">Make private<");
   });
 
   it("shows an empty state", () => {

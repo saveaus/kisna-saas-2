@@ -55,8 +55,10 @@ On `main`:
 On branch `step-3-clients`, not merged yet:
 
 - **Step 3, Clients:** click-to-edit in the Details panel, Notes, Contacts,
-  Files (private bucket, one-minute links), Incomplete flag and activity
-  history. New migration `20261103020000_client_records.sql`, tested per role.
+  Files (private bucket, one-minute links, shared with support workers per file),
+  Incomplete flag and activity history. New migrations
+  `20261103020000_client_records.sql` and `20261103030000_client_file_sharing.sql`,
+  tested per role.
 - **Fictional demo data** in `src/lib/demo-data.ts`, added in Cursor. The seed
   fills the project's oldest workspace, or creates Demo Provider if there is
   none.
@@ -75,8 +77,8 @@ through the CLI, which has never been linked on this computer, so the project
 may have no record of them. The earlier `create_workspace` error should be gone,
 but hasn't been retested signed in.
 
-**Client pages will error until the new migration is pushed**, because they read
-tables it creates.
+**Client pages will error until the new migrations are pushed**, because they read
+tables those create.
 
 1. `.env.local` has the URL and anon key. `SUPABASE_SERVICE_ROLE_KEY` (line 11)
    was still empty on disk. Never commit it or paste keys into chat.
@@ -84,7 +86,7 @@ tables it creates.
    `npx --yes supabase@2 link --project-ref qxhnklaygagfbrgzgmfe` and
    `npx --yes supabase@2 migration list`. If the first two show as not applied
    on the remote, mark them with `migration repair --status applied` rather than
-   letting `db push` run them again. Check the new migration with
+   letting `db push` run them again. Check the new migrations with
    `db push --dry-run`, then `npm run db:push`. If the API still can't see a
    change, run `notify pgrst, 'reload schema';` in the SQL editor.
 3. `npm run seed`, then sign in as `superadmin@example.com` (`SEED_PASSWORD` in
@@ -98,22 +100,20 @@ tables it creates.
 If the Supabase MCP is set up in Cursor, prefer `read_only=true`; all
 schema changes go through files in `supabase/migrations`.
 
-## Waiting on Izak (Step 3)
+## Decisions from Izak on Step 3 (3 Nov 2026)
 
-- Should support workers be able to add notes on their own clients? Today only
-  people with Clients & Sites: Full can.
-- Should support workers open all files on their own clients? Today they can.
-- Contact fields and types aren't from Imploy. Check them against Imploy's
-  Contacts tab.
-- Imploy calls Funding Type "locked". Care OS lets it be changed. Confirm.
-- Import CSV and "Save default for everyone" were labelled Step 3 but aren't in
-  its list. They now say "Arrives after Step 4". Decide when they land.
+- Support workers can't add notes. Only people with Clients & Sites: Full can.
+- Support workers only open files that have been shared with them. New files
+  start private.
+- A client's funding type can be changed, even though Imploy calls it "locked".
+- The contact fields and types are right.
+- Import CSV and "Save default for everyone" arrive after Step 4.
 
 ## What's next
 
 1. Finish setup above and fix anything that breaks on real Supabase
    (sign-in, invite email, permissions, saved views, Step 3).
-2. Izak checks Step 3, answers the questions above, then merge it.
+2. Izak checks Step 3, then merge it.
 3. **Step 4, Staff:** same for staff: editing, Notes, Files, Activity. Prompt is
    in `docs/brief.md`. `RecordView`'s `editing` prop, `DataTable`'s `embedded`
    prop and `audit_log` are ready to reuse.

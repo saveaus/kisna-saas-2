@@ -474,8 +474,11 @@ export const clientContactExamples: {
   },
 ];
 
-/** Small text files, so the Files tab has something to open. */
-export const clientFileExamples: { client: string; name: string; body: string }[] = [
+/**
+ * Small text files, so the Files tab has something to open. Jordan Hale, the
+ * demo support worker, is on Amira's team: they should see her shared file only.
+ */
+export const clientFileExamples: { client: string; name: string; body: string; shared?: boolean }[] = [
   {
     client: "Margaret Doyle",
     name: "Care plan summary.txt",
@@ -485,5 +488,11 @@ export const clientFileExamples: { client: string; name: string; body: string }[
     client: "Amira Hassan",
     name: "Allergy action plan.txt",
     body: "Fictional demo file.\n\nPeanut allergy. No food preparation with nuts in the house.\n",
+    shared: true,
+  },
+  {
+    client: "Amira Hassan",
+    name: "Service agreement.txt",
+    body: "Fictional demo file.\n\nPrivate to the office: not shared with support workers.\n",
   },
 ];

@@ -60,7 +60,7 @@ After `npm run seed`, sign in as each demo login:
 | superadmin@example.com | Everything, plus Settings → Permissions (editable) |
 | manager@example.com | All clients and staff, can add them; no permission changes |
 | scheduler@example.com | Clients and staff read-only; no bank details |
-| worker@example.com | Only Amira Hassan and Noah Bennett; no Staff or Sites |
+| worker@example.com | Only Amira Hassan and Noah Bennett; no Staff or Sites; only files shared with them |
 
 Change a role's access in Settings → Permissions as the superadmin, and the
 other logins change straight away.

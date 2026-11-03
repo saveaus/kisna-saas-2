@@ -73,7 +73,7 @@ export async function listClientFiles(clientId: number): Promise<FileItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("client_files")
-    .select("id, name, size_bytes, mime_type, created_by_name, created_at")
+    .select("id, name, size_bytes, mime_type, shared_with_team, created_by_name, created_at")
     .eq("workspace_id", session.workspaceId)
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
@@ -86,6 +86,7 @@ export async function listClientFiles(clientId: number): Promise<FileItem[]> {
     mimeType: file.mime_type,
     uploadedBy: file.created_by_name,
     when: timeAgo(file.created_at),
+    shared: file.shared_with_team,
   }));
 }
 

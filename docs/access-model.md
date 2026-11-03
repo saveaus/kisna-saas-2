@@ -8,7 +8,8 @@ hides buttons and menu items to match.
 Tests: `npm test` runs `supabase/tests/access.test.ts`, which signs in as each
 role and checks what the database allows.
 
-Step 3's rules are in `20261103020000_client_records.sql`, tested in
+Step 3's rules are in `20261103020000_client_records.sql` and
+`20261103030000_client_file_sharing.sql`, tested in
 `supabase/tests/client-records.test.ts`.
 
 ## How a user gets access
@@ -69,13 +70,15 @@ phases plug straight in.
 
 ## Client notes, contacts, files and activity
 
-These follow the client: if you can see a client, you can see these. Changing
-them needs Clients & Sites: Full. With the default permissions:
+Notes, contacts and activity follow the client: if you can see a client, you can
+see these. Files are the exception: support workers only see files shared with
+them. Changing anything needs Clients & Sites: Full. With the default permissions:
 
 | | Superadmin | Service Manager | Scheduler | Support worker (own clients) |
 | --- | --- | --- | --- | --- |
-| Read notes and contacts, open files, see activity | Yes | Yes | Yes | Yes |
-| Add notes, change contacts, upload or delete files | Yes | Yes | No | No |
+| Read notes and contacts, see activity | Yes | Yes | Yes | Yes |
+| Open files | All | All | All | Only shared files |
+| Add notes, change contacts, upload, share or delete files | Yes | Yes | No | No |
 | Edit a note | Their own | Their own | No | No |
 | Delete a note | Any | Their own | No | No |
 
@@ -85,10 +88,15 @@ them needs Clients & Sites: Full. With the default permissions:
   pages or scripts). They're only reached through a link that lasts one minute,
   made per click after access is checked. The rules apply to the stored file as
   well as its row.
+- **Sharing a file** (Files tab → Share) lets support workers on that client's
+  team open it. New files start private. "Shared" only means shared inside the
+  workspace: nothing is ever on the public internet. Sharing is the only thing
+  that can change about a file after upload.
 - **Activity** is a summary of the audit log (`client_activity`): who, when and
   which fields, never the values. Bank detail changes only show for people with
-  Finance access. The audit log itself stays Superadmin-only, and now keeps a
-  copy of anything deleted.
+  Finance access, and support workers only see entries for files currently shared
+  with them. The audit log itself stays Superadmin-only, and now keeps a copy of
+  anything deleted.
 - **Preferred staff can see the client.** Do Not Send removes access. Removing
   someone from either list ends their access to that client.
 

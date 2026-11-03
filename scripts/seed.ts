@@ -298,6 +298,7 @@ async function main() {
         storage_path: path,
         size_bytes: Buffer.byteLength(file.body),
         mime_type: "text/plain",
+        shared_with_team: file.shared ?? false,
       }),
     );
   }

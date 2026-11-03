@@ -85,8 +85,8 @@ Fields shown depend on Funding Type.
 | Lists | Relation (saved lists the client is in) |
 
 ### Contacts
-**To confirm against Imploy:** these aren't from Imploy's field list. The brief
-names family, coordinators and plan managers; the rest is a starting point.
+These aren't from Imploy's field list: the brief names family, coordinators and
+plan managers, and Izak confirmed the fields below on 3 Nov 2026.
 
 | Field | Type | Options / notes |
 | --- | --- | --- |
