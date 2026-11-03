@@ -57,10 +57,12 @@ function toStaff(row: Record<string, unknown>): StaffRecord {
 }
 
 export async function listClients() {
+  const session = await getSession();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("clients")
     .select(CLIENT_SELECT)
+    .eq("workspace_id", session.workspaceId)
     .order("name");
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => toClient(r as unknown as Record<string, unknown>));
@@ -72,6 +74,7 @@ export async function getClient(id: number) {
   const { data, error } = await supabase
     .from("clients")
     .select(CLIENT_SELECT)
+    .eq("workspace_id", session.workspaceId)
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -83,6 +86,7 @@ export async function getClient(id: number) {
     const { data: fin } = await supabase
       .from("client_financials")
       .select(Object.values(CLIENT_FINANCIAL_COLUMNS).join(", "))
+      .eq("workspace_id", session.workspaceId)
       .eq("client_id", id)
       .maybeSingle();
     if (fin) Object.assign(client, fromRow(fin as unknown as Record<string, unknown>, CLIENT_FINANCIAL_COLUMNS));
@@ -92,13 +96,14 @@ export async function getClient(id: number) {
 }
 
 export async function listStaff() {
+  const session = await getSession();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("staff")
     .select(`id, user_id, ${Object.values(STAFF_COLUMNS).join(", ")}`)
+    .eq("workspace_id", session.workspaceId)
     .order("name");
   if (error) throw new Error(error.message);
-  const session = await getSession();
   return (data ?? []).map((r) => ({
     ...toStaff(r as unknown as Record<string, unknown>),
     accessBusiness: session.workspaceName,
@@ -106,15 +111,16 @@ export async function listStaff() {
 }
 
 export async function getStaff(id: number) {
+  const session = await getSession();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("staff")
     .select(`id, user_id, ${Object.values(STAFF_COLUMNS).join(", ")}`)
+    .eq("workspace_id", session.workspaceId)
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const session = await getSession();
   return {
     ...toStaff(data as unknown as Record<string, unknown>),
     accessBusiness: session.workspaceName,
@@ -123,20 +129,24 @@ export async function getStaff(id: number) {
 
 /** Active staff for pickers (care manager, scheduler). */
 export async function listStaffOptions(): Promise<StaffOption[]> {
+  const session = await getSession();
   const supabase = await createClient();
   const { data } = await supabase
     .from("staff")
     .select("id, name")
+    .eq("workspace_id", session.workspaceId)
     .eq("status", "Active")
     .order("name");
   return (data ?? []).map((s) => ({ id: Number(s.id), name: s.name }));
 }
 
 export async function listSites(): Promise<SiteRecord[]> {
+  const session = await getSession();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sites")
     .select(`id, ${Object.values(SITE_COLUMNS).join(", ")}, manager:staff!sites_manager_id_fkey(name)`)
+    .eq("workspace_id", session.workspaceId)
     .order("name");
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => {

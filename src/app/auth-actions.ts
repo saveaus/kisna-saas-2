@@ -19,6 +19,25 @@ export async function createWorkspaceAction(
   if (!name || !me) return { ok: false, error: "Add your business name and your name." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // One workspace per login for now. Anyone already in one is sent there.
+  const { data: existing } = await supabase
+    .from("staff")
+    .select("id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    return {
+      ok: false,
+      error: "This login already belongs to a workspace. Ask its superadmin to reactivate you.",
+    };
+  }
+
   const { error } = await supabase.rpc("create_workspace", {
     workspace_name: name,
     my_name: me,

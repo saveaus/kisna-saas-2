@@ -41,7 +41,8 @@ the build order (Phase 1 plan).
   request. `params` is still a Promise.
 - **Reads go through `src/lib/data/*.server.ts`**, never straight from
   pages. Writes are server actions in `src/features/<feature>/actions.ts`
-  that call `requirePermission()` first.
+  that call `checkPermission()` first — outside any try/catch, so an
+  expired session can still redirect to /login.
 
 ## Data and security
 - Read `docs/access-model.md` before touching tables, roles or permissions.

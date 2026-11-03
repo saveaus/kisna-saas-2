@@ -38,14 +38,14 @@ export const getSession = cache(async (): Promise<SessionContext> => {
   if (!me) redirect("/onboarding");
 
   const role = me.role as RoleKey;
-  const { data: perms } = await supabase
-    .from("role_permissions")
-    .select("area, level")
-    .eq("workspace_id", me.workspace_id)
-    .eq("role", role === "superadmin" ? "service_manager" : role); // superadmin ignores the matrix
-
   const permissions: PermissionMap = {};
+  // Superadmin always has full access, so the matrix only matters for other roles.
   if (role !== "superadmin") {
+    const { data: perms } = await supabase
+      .from("role_permissions")
+      .select("area, level")
+      .eq("workspace_id", me.workspace_id)
+      .eq("role", role);
     for (const p of perms ?? []) permissions[p.area as AreaKey] = p.level as Level;
   }
 
@@ -70,11 +70,18 @@ export function sessionCan(
   return can(session.role, session.permissions, area, needed);
 }
 
-/** For server actions: the session, or a thrown error if not allowed. */
-export async function requirePermission(area: AreaKey, needed: Exclude<Level, "none">) {
+/**
+ * For server actions. Call it OUTSIDE any try/catch: when the session has
+ * expired it redirects to /login, which works by throwing.
+ * Returns the session, or an error message if this role isn't allowed.
+ */
+export async function checkPermission(
+  area: AreaKey,
+  needed: Exclude<Level, "none">,
+): Promise<{ session: SessionContext; error?: undefined } | { session?: undefined; error: string }> {
   const session = await getSession();
   if (!sessionCan(session, area, needed)) {
-    throw new Error("You don't have permission to do that.");
+    return { error: "You don't have permission to do that." };
   }
-  return session;
+  return { session };
 }

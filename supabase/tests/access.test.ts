@@ -312,6 +312,57 @@ describe("other workspaces and anonymous visitors", () => {
   });
 });
 
+describe("saved views", () => {
+  it("are private to the person who made them", async () => {
+    const id = await as(db, MANAGER, async (q) => {
+      const [row] = await q<{ id: number }>(
+        `insert into public.saved_views (workspace_id, object, name, filters)
+         values ($1, 'clients', 'My NDIS', '[{"column":"fundingType","values":["NDIS"]}]') returning id`,
+        [ws],
+      );
+      return row.id;
+    });
+    await as(db, SCHEDULER, async (q) => {
+      expect((await q("select id from public.saved_views")).length).toBe(0);
+      expect((await q("delete from public.saved_views where id = $1 returning id", [id])).length).toBe(0);
+      expect(
+        (await q("update public.saved_views set name = 'Hijacked' where id = $1 returning id", [id])).length,
+      ).toBe(0);
+    });
+    await as(db, MANAGER, async (q) => {
+      expect(
+        (await q("update public.saved_views set name = 'NDIS clients' where id = $1 returning id", [id])).length,
+      ).toBe(1);
+      expect((await q("delete from public.saved_views where id = $1 returning id", [id])).length).toBe(1);
+    });
+  });
+
+  it("can't be created for someone else or another workspace", async () => {
+    await expect(
+      as(db, MANAGER, (q) =>
+        q(
+          `insert into public.saved_views (workspace_id, user_id, object, name)
+           values ($1, $2, 'clients', 'Sneaky')`,
+          [ws, SCHEDULER],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      as(db, MANAGER, (q) =>
+        q("insert into public.saved_views (workspace_id, object, name) values ($1, 'clients', 'X')", [otherWs]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it("need a name", async () => {
+    await expect(
+      as(db, MANAGER, (q) =>
+        q("insert into public.saved_views (workspace_id, object, name) values ($1, 'clients', '  ')", [ws]),
+      ),
+    ).rejects.toThrow(/check constraint/);
+  });
+});
+
 describe("audit log", () => {
   it("records changes and can't be edited, even by a superadmin", async () => {
     await as(db, ADMIN, async (q) => {

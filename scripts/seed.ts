@@ -5,9 +5,10 @@
  *
  * Run: npm run seed   (reads .env.local)
  *
- * Needs SUPABASE_SERVICE_ROLE_KEY to create the logins. Everything else is
- * written through the superadmin's own session, so the database's access
- * rules apply just as they do in the app.
+ * Safe to run again: it only adds what's missing. Needs
+ * SUPABASE_SERVICE_ROLE_KEY to create the logins; everything else is written
+ * through the superadmin's own session, so the database's access rules apply
+ * just as they do in the app.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
@@ -35,12 +36,27 @@ const LOGINS: Record<string, string> = {
   "Demo Scheduler": "scheduler@example.com",
   "Jordan Hale": "worker@example.com",
 };
+const SUPERADMIN = "Alex Morgan";
 // Clients the demo support worker works with.
+const WORKER = "Jordan Hale";
 const WORKER_CLIENTS = ["Amira Hassan", "Noah Bennett"];
 
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+
+async function findUserByEmail(email: string) {
+  for (let page = 1; page < 50; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const found = data.users.find((u) => u.email?.toLowerCase() === email);
+    if (found) return found;
+    if (data.users.length < 200) return undefined;
+  }
+  return undefined;
+}
+
+let reusedLogins = false;
 
 async function ensureUser(email: string, name: string) {
   const { data, error } = await admin.auth.admin.createUser({
@@ -49,11 +65,13 @@ async function ensureUser(email: string, name: string) {
     email_confirm: true,
     user_metadata: { name },
   });
-  if (data.user) return { id: data.user.id, created: true };
+  if (data.user) return data.user.id;
   if (error && /already/i.test(error.message)) {
-    const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const existing = list.users.find((u) => u.email === email);
-    if (existing) return { id: existing.id, created: false };
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      reusedLogins = true;
+      return existing.id;
+    }
   }
   throw new Error(`Couldn't create ${email}: ${error?.message}`);
 }
@@ -63,94 +81,130 @@ async function signIn(email: string): Promise<SupabaseClient> {
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) {
     throw new Error(
-      `Couldn't sign in as ${email} (${error.message}). If the demo logins already exist, run again with SEED_PASSWORD set to their password.`,
+      `Couldn't sign in as ${email} (${error.message}). The demo logins already exist: run again with SEED_PASSWORD set to their password.`,
     );
   }
   return client;
 }
 
+async function must<T>(
+  promise: PromiseLike<{ data: T; error: { message: string } | null }>,
+): Promise<NonNullable<T>> {
+  const { data, error } = await promise;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as NonNullable<T>;
+}
+
 async function main() {
-  console.log("Creating demo logins…");
+  console.log("Demo logins…");
   const userIds: Record<string, string> = {};
   for (const [name, email] of Object.entries(LOGINS)) {
-    userIds[name] = (await ensureUser(email, name)).id;
+    userIds[name] = await ensureUser(email, name);
   }
 
-  const superadminEmail = LOGINS["Alex Morgan"];
-  const db = await signIn(superadminEmail);
+  const db = await signIn(LOGINS[SUPERADMIN]);
 
-  const { data: existing } = await db.from("staff").select("workspace_id").limit(1);
-  if (existing && existing.length > 0) {
-    console.log("The demo workspace already exists. Nothing to do.");
-    return;
+  // Workspace (created by the superadmin, who becomes its first member).
+  const mine = await must(
+    db.from("staff").select("id, workspace_id").eq("user_id", userIds[SUPERADMIN]).limit(1),
+  );
+  let workspaceId: string;
+  if (mine.length) {
+    workspaceId = mine[0].workspace_id;
+    console.log("Demo Provider workspace already exists; adding anything missing.");
+  } else {
+    console.log("Creating the Demo Provider workspace…");
+    workspaceId = (await must(
+      db.rpc("create_workspace", { workspace_name: "Demo Provider", my_name: SUPERADMIN }),
+    )) as string;
   }
 
-  console.log("Creating the Demo Provider workspace…");
-  const { data: wsId, error: wsError } = await db.rpc("create_workspace", {
-    workspace_name: "Demo Provider",
-    my_name: "Alex Morgan",
-  });
-  if (wsError) throw wsError;
-  const workspaceId = wsId as string;
-
-  console.log("Adding staff…");
+  console.log("Staff…");
+  const existingStaff = await must(
+    db.from("staff").select("id, name, email").eq("workspace_id", workspaceId),
+  );
   const staffIds: Record<string, number> = {};
-  const { data: me } = await db.from("staff").select("id").eq("user_id", userIds["Alex Morgan"]).single();
-  staffIds["Alex Morgan"] = Number(me!.id);
+  for (const s of existingStaff) staffIds[s.name] = Number(s.id);
 
   for (const person of staff) {
-    if (person.name === "Alex Morgan") continue;
-    const { data, error } = await db
-      .from("staff")
-      .insert({
-        ...toRow(person, STAFF_COLUMNS),
-        role: roleKeyFromLabel(String(person.role)) ?? "support_worker",
-        workspace_id: workspaceId,
-        user_id: userIds[person.name] ?? null,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    staffIds[person.name] = Number(data.id);
+    const details = {
+      ...toRow(person, STAFF_COLUMNS),
+      email: String(person.email).toLowerCase(),
+      role: roleKeyFromLabel(String(person.role)) ?? "support_worker",
+    };
+    if (person.name === SUPERADMIN) {
+      // Fill in the superadmin's demo details (role stays superadmin).
+      const { role: _role, ...rest } = details;
+      void _role;
+      const me = existingStaff.find((s) => s.name === SUPERADMIN) ??
+        (await must(db.from("staff").select("id, name, email").eq("user_id", userIds[SUPERADMIN]).limit(1)))[0];
+      await must(db.from("staff").update({ ...rest, email: LOGINS[SUPERADMIN] }).eq("id", me.id));
+      staffIds[SUPERADMIN] = Number(me.id);
+      continue;
+    }
+    if (staffIds[person.name]) continue;
+    const row = await must(
+      db
+        .from("staff")
+        .insert({ ...details, workspace_id: workspaceId, user_id: userIds[person.name] ?? null })
+        .select("id")
+        .single(),
+    );
+    staffIds[person.name] = Number(row.id);
   }
 
-  console.log("Adding clients…");
+  console.log("Clients…");
+  const existingClients = await must(
+    db.from("clients").select("id, name").eq("workspace_id", workspaceId),
+  );
+  const clientIds: Record<string, number> = {};
+  for (const c of existingClients) clientIds[c.name] = Number(c.id);
+
   for (const client of clients) {
-    const { data, error } = await db
-      .from("clients")
-      .insert({
-        ...toRow(client, CLIENT_COLUMNS),
-        workspace_id: workspaceId,
-        care_manager_id: staffIds[String(client.careManager)] ?? null,
-        scheduler_id: staffIds[String(client.scheduler)] ?? null,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
+    if (!clientIds[client.name]) {
+      const row = await must(
+        db
+          .from("clients")
+          .insert({
+            ...toRow(client, CLIENT_COLUMNS),
+            workspace_id: workspaceId,
+            care_manager_id: staffIds[String(client.careManager)] ?? null,
+            scheduler_id: staffIds[String(client.scheduler)] ?? null,
+          })
+          .select("id")
+          .single(),
+      );
+      clientIds[client.name] = Number(row.id);
+    }
     if (WORKER_CLIENTS.includes(client.name)) {
-      const { error: teamError } = await db.from("client_team").insert({
-        client_id: data.id,
-        staff_id: staffIds["Jordan Hale"],
-        workspace_id: workspaceId,
-      });
-      if (teamError) throw teamError;
+      await must(
+        db.from("client_team").upsert(
+          { client_id: clientIds[client.name], staff_id: staffIds[WORKER], workspace_id: workspaceId },
+          { onConflict: "client_id,staff_id", ignoreDuplicates: true },
+        ),
+      );
     }
   }
 
-  console.log("Adding sites…");
+  console.log("Sites…");
+  const existingSites = await must(db.from("sites").select("name").eq("workspace_id", workspaceId));
   for (const site of sites) {
-    const { error } = await db.from("sites").insert({
-      ...toRow(site, SITE_COLUMNS),
-      workspace_id: workspaceId,
-      manager_id: staffIds[String(site.manager)] ?? null,
-    });
-    if (error) throw error;
+    if (existingSites.some((s) => s.name === site.name)) continue;
+    await must(
+      db.from("sites").insert({
+        ...toRow(site, SITE_COLUMNS),
+        workspace_id: workspaceId,
+        manager_id: staffIds[String(site.manager)] ?? null,
+      }),
+    );
   }
 
   console.log("\nDone. Sign in at http://localhost:3000 with any of these:\n");
   for (const [name, email] of Object.entries(LOGINS)) {
     const role = staff.find((s) => s.name === name)?.role;
-    console.log(`  ${String(role).padEnd(24)} ${email.padEnd(26)} password: ${password}`);
+    console.log(
+      `  ${String(role).padEnd(24)} ${email.padEnd(26)} password: ${reusedLogins ? "(unchanged)" : password}`,
+    );
   }
   console.log("\nThe support worker only sees Amira Hassan and Noah Bennett.");
 }

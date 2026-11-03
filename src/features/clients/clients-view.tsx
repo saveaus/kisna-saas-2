@@ -100,17 +100,20 @@ const columns: Column<ClientRecord>[] = [
   },
 ];
 
-const views: View[] = [
+/** Quick picks offered when saving a new view. */
+const presets: View[] = [
   { key: "ndis", label: "NDIS participants", filters: [{ column: "fundingType", values: ["NDIS"] }] },
   { key: "allergies", label: "Participants with allergies", filters: [{ column: "allergies", values: ["__any__"] }] },
 ];
 
 export function ClientsView({
   rows,
+  savedViews,
   canCreate,
   staffOptions,
 }: {
   rows: ClientRecord[];
+  savedViews: View[];
   canCreate: boolean;
   staffOptions: StaffOption[];
 }) {
@@ -125,7 +128,9 @@ export function ClientsView({
         noun="client"
         columns={columns}
         rows={rows}
-        views={views}
+        presets={presets}
+        savedViews={savedViews}
+        viewObject="clients"
         rowHref={(r) => `/clients/${r.id}`}
         onCreate={canCreate ? () => setCreating(true) : undefined}
       />

@@ -15,7 +15,6 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
-  Table2,
   Upload,
   X,
   type LucideIcon,
@@ -30,6 +29,8 @@ import {
   Popover,
 } from "@/components/ui/primitives";
 import { TopBar } from "@/components/shell/top-bar";
+import type { Filter, View, ViewObject } from "@/lib/views";
+import { ViewTabs } from "./view-tabs";
 
 /**
  * Reusable Lightfield-style table view: view tabs, chip filters, Display
@@ -53,8 +54,7 @@ export type Column<T extends Row> = {
   defaultHidden?: boolean;
 };
 
-export type Filter = { column: string; values: string[] };
-export type View = { key: string; label: string; filters: Filter[] };
+export type { Filter, View } from "@/lib/views";
 
 type Sort = { key: string; dir: "asc" | "desc" } | null;
 
@@ -83,7 +83,9 @@ export function DataTable<T extends Row>({
   noun,
   columns,
   rows,
-  views = [],
+  presets = [],
+  savedViews = [],
+  viewObject,
   rowHref,
   onCreate,
 }: {
@@ -93,12 +95,17 @@ export function DataTable<T extends Row>({
   noun: string;
   columns: Column<T>[];
   rows: T[];
-  views?: View[];
+  /** Ready-made filters offered when saving a new view. */
+  presets?: View[];
+  /** The signed-in person's saved views (from the database). */
+  savedViews?: View[];
+  /** Which table the views belong to; enables saving views. */
+  viewObject?: ViewObject;
   rowHref?: (row: T) => string;
   onCreate?: () => void;
 }) {
-  const allViews: View[] = [{ key: "all", label: "All", filters: [] }, ...views];
-  const [customViews, setCustomViews] = useState<View[]>([]);
+  const allView: View = { key: "all", label: "All", filters: [] };
+  const [customViews, setCustomViews] = useState<View[]>(savedViews);
   const [viewKey, setViewKey] = useState("all");
   const [filters, setFilters] = useState<Filter[]>([]);
   const [search, setSearch] = useState("");
@@ -117,8 +124,7 @@ export function DataTable<T extends Row>({
   const visible = order.filter((k) => !hidden.has(k)).map((k) => byKey[k]);
   const nameCol = visible[0];
 
-  const views2 = [...allViews, ...customViews];
-  const activeView = views2.find((v) => v.key === viewKey) ?? allViews[0];
+  const activeView = customViews.find((v) => v.key === viewKey) ?? allView;
   const activeFilters = useMemo(
     () => [...activeView.filters, ...filters],
     [activeView, filters],
@@ -186,17 +192,6 @@ export function DataTable<T extends Row>({
     });
   };
 
-  const saveView = () => {
-    const label = `View ${customViews.length + 1}`;
-    const key = `custom-${customViews.length + 1}`;
-    setCustomViews((prev) => [
-      ...prev,
-      { key, label, filters: [...activeFilters] },
-    ]);
-    setFilters([]);
-    setViewKey(key);
-  };
-
   const filterable = columns.filter((c) => c.filterOptions?.length);
 
   return (
@@ -217,36 +212,21 @@ export function DataTable<T extends Row>({
           </>
         }
       >
-        <div className="flex items-center gap-1">
-          {views2.map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              onClick={() => {
-                setViewKey(v.key);
-                setFilters([]);
-              }}
-              className={cn(
-                "inline-flex h-6 items-center gap-1 rounded-[6px] border-[0.5px] px-[7px] text-[12px] font-medium",
-                v.key === viewKey
-                  ? "border-line bg-hover text-ink"
-                  : "border-transparent text-ink-3 hover:bg-hover",
-              )}
-            >
-              <Table2 size={12} strokeWidth={1.75} />
-              {v.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={saveView}
-            disabled={activeFilters.length === 0 && filters.length === 0}
-            title="Save the current filters as a view"
-            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-ink-3 hover:bg-hover disabled:opacity-40"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
+        <ViewTabs
+          allView={allView}
+          views={customViews}
+          setViews={setCustomViews}
+          activeKey={viewKey}
+          onSelect={(key) => {
+            setViewKey(key);
+            setFilters([]);
+          }}
+          activeFilters={activeFilters}
+          extraFilters={filters}
+          clearExtraFilters={() => setFilters([])}
+          presets={presets}
+          viewObject={viewObject}
+        />
       </TopBar>
 
       {/* Toolbar: search, filters, display */}

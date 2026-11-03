@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, Hash, MapPin, Tag, User, Users } from "lucide-react";
-import { DataTable, type Column } from "@/components/table/data-table";
+import { DataTable, type Column, type View } from "@/components/table/data-table";
 import { Chip } from "@/components/ui/primitives";
 import { formatDate } from "@/components/popup/popup";
 import type { SiteRecord } from "@/lib/records";
@@ -31,6 +31,16 @@ const columns: Column<SiteRecord>[] = [
 ];
 
 /** Sites list. Site records and Create site arrive in Step 3. */
-export function SitesView({ rows }: { rows: SiteRecord[] }) {
-  return <DataTable title="Sites" icon={MapPin} noun="site" columns={columns} rows={rows} />;
+export function SitesView({ rows, savedViews }: { rows: SiteRecord[]; savedViews: View[] }) {
+  return (
+    <DataTable
+      title="Sites"
+      icon={MapPin}
+      noun="site"
+      columns={columns}
+      rows={rows}
+      savedViews={savedViews}
+      viewObject="sites"
+    />
+  );
 }

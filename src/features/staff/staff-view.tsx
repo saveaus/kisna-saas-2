@@ -80,7 +80,8 @@ const columns: Column<StaffRecord>[] = [
   },
 ];
 
-const views: View[] = [
+/** Quick picks offered when saving a new view. */
+const presets: View[] = [
   {
     key: "workers",
     label: "Support workers",
@@ -95,10 +96,12 @@ const views: View[] = [
 
 export function StaffView({
   rows,
+  savedViews,
   canCreate,
   canCreateSuperadmin,
 }: {
   rows: StaffRecord[];
+  savedViews: View[];
   canCreate: boolean;
   canCreateSuperadmin: boolean;
 }) {
@@ -131,7 +134,9 @@ export function StaffView({
         noun="staff"
         columns={columns}
         rows={rows}
-        views={views}
+        presets={presets}
+        savedViews={savedViews}
+        viewObject="staff"
         rowHref={(r) => `/staff/${r.id}`}
         onCreate={canCreate ? () => setCreating(true) : undefined}
       />
