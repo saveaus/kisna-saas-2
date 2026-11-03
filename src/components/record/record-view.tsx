@@ -16,8 +16,15 @@ import {
 import { cn, initials } from "@/lib/cn";
 import { isFieldVisible, type FieldDef, type FieldSection } from "@/lib/fields";
 import type { FieldValue } from "@/lib/records";
-import { Avatar, Button, Chip, StatusPill } from "@/components/ui/primitives";
-import { formatDate } from "@/components/popup/popup";
+import {
+  Avatar,
+  Button,
+  Chip,
+  MenuItem,
+  Popover,
+  StatusPill,
+} from "@/components/ui/primitives";
+import { FieldEditor, FieldValueView, isEmptyValue, type FieldSave } from "./field-editor";
 
 /**
  * Reusable Lightfield-style record page: top bar with the record name and
@@ -36,6 +43,25 @@ export type RelatedSection = {
   title: string;
   items: ReactNode[];
   empty: string;
+  /** "See all" opens this tab. */
+  tab?: string;
+};
+
+/** Turns on inline editing in the Details panel. */
+export type RecordEditing = {
+  canEdit: (field: FieldDef) => boolean;
+  onSave: FieldSave;
+  /** Choices for relation fields, by field key. */
+  options?: Record<string, readonly string[]>;
+};
+
+/** An entry in the top bar's Create menu. */
+export type CreateItem = {
+  label: string;
+  icon: LucideIcon;
+  /** Opens this tab. */
+  tab?: string;
+  onSelect?: () => void;
 };
 
 export function RecordView({
@@ -50,6 +76,8 @@ export function RecordView({
   sections,
   record,
   related = [],
+  editing,
+  createItems = [],
 }: {
   backHref: string;
   backLabel: string;
@@ -62,6 +90,8 @@ export function RecordView({
   sections: FieldSection[];
   record: Record<string, FieldValue>;
   related?: RelatedSection[];
+  editing?: RecordEditing;
+  createItems?: CreateItem[];
 }) {
   const [tab, setTab] = useState(tabs[0]?.key);
   const [panelOpen, setPanelOpen] = useState(true);
@@ -130,9 +160,37 @@ export function RecordView({
             >
               <LinkIcon size={14} />
             </button>
-            <Button icon={Plus} disabled title="Arrives with each feature">
-              Create
-            </Button>
+            {createItems.length > 0 ? (
+              <Popover
+                align="right"
+                width={180}
+                trigger={({ toggle }) => (
+                  <Button icon={Plus} onClick={toggle}>
+                    Create
+                  </Button>
+                )}
+              >
+                {(close) =>
+                  createItems.map((item) => (
+                    <MenuItem
+                      key={item.label}
+                      icon={item.icon}
+                      onClick={() => {
+                        if (item.tab) setTab(item.tab);
+                        item.onSelect?.();
+                        close();
+                      }}
+                    >
+                      {item.label}
+                    </MenuItem>
+                  ))
+                }
+              </Popover>
+            ) : (
+              <Button icon={Plus} disabled title="You don't have permission to add to this record">
+                Create
+              </Button>
+            )}
             {!panelOpen && (
               <button
                 type="button"
@@ -185,13 +243,24 @@ export function RecordView({
                 section={s}
                 record={record}
                 defaultOpen={i < 2}
+                editing={editing}
               />
             ))}
             {related.map((r) => (
               <div key={r.title} className="border-t-[0.5px] border-line py-3">
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-[13px] font-medium text-ink">{r.title}</span>
-                  <span className="text-[12px] text-ink-4">See all</span>
+                  {r.tab ? (
+                    <button
+                      type="button"
+                      onClick={() => r.tab && setTab(r.tab)}
+                      className="rounded-[4px] px-1 text-[12px] text-ink-4 hover:bg-hover"
+                    >
+                      See all
+                    </button>
+                  ) : (
+                    <span className="text-[12px] text-ink-4">See all</span>
+                  )}
                 </div>
                 {r.items.length ? (
                   <div className="flex flex-col gap-1">{r.items}</div>
@@ -211,10 +280,12 @@ function DetailsSection({
   section,
   record,
   defaultOpen,
+  editing,
 }: {
   section: FieldSection;
   record: Record<string, FieldValue>;
   defaultOpen: boolean;
+  editing?: RecordEditing;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const fields = section.fields.filter((f) => isFieldVisible(f, record));
@@ -233,7 +304,7 @@ function DetailsSection({
       {open && (
         <div className="flex flex-col">
           {fields.map((f) => (
-            <FieldRow key={f.key} field={f} value={record[f.key]} />
+            <FieldRow key={f.key} field={f} value={record[f.key]} editing={editing} />
           ))}
         </div>
       )}
@@ -241,9 +312,15 @@ function DetailsSection({
   );
 }
 
-function FieldRow({ field, value }: { field: FieldDef; value: FieldValue }) {
-  const empty =
-    value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
+function FieldRow({
+  field,
+  value,
+  editing,
+}: {
+  field: FieldDef;
+  value: FieldValue;
+  editing?: RecordEditing;
+}) {
   return (
     <div className="flex min-h-8 items-start gap-3 py-1">
       <div className="w-[130px] shrink-0 pt-0.5 text-[13px] text-ink-4">
@@ -251,9 +328,20 @@ function FieldRow({ field, value }: { field: FieldDef; value: FieldValue }) {
         {field.required && <span className="text-ink-5"> *</span>}
       </div>
       <div className="min-w-0 flex-1 text-[13px] text-ink">
-        {empty ? (
+        {editing?.canEdit(field) ? (
+          <FieldEditor
+            field={field}
+            value={value}
+            options={editing.options?.[field.key]}
+            onSave={editing.onSave}
+          />
+        ) : isEmptyValue(value) ? (
           <span className="text-ink-5">
-            {field.calculated ? "Calculated" : `Set ${field.label.toLowerCase()}…`}
+            {field.calculated
+              ? "Calculated"
+              : field.arrives
+                ? `Arrives in ${field.arrives}`
+                : "Empty"}
           </span>
         ) : (
           <FieldValueView field={field} value={value} />
@@ -261,33 +349,4 @@ function FieldRow({ field, value }: { field: FieldDef; value: FieldValue }) {
       </div>
     </div>
   );
-}
-
-function FieldValueView({ field, value }: { field: FieldDef; value: FieldValue }) {
-  if (Array.isArray(value)) {
-    return (
-      <div className="flex flex-wrap gap-1">
-        {value.map((v) => (
-          <Chip key={v}>{v}</Chip>
-        ))}
-      </div>
-    );
-  }
-  if (field.type === "select") return <Chip>{String(value)}</Chip>;
-  if (field.type === "date") return <span>{formatDate(String(value))}</span>;
-  if (field.type === "percent") return <span>{value}%</span>;
-  if (field.type === "email")
-    return (
-      <a href={`mailto:${value}`} className="text-[var(--blue-ink)] hover:underline">
-        {String(value)}
-      </a>
-    );
-  if (field.type === "relation")
-    return (
-      <span className="inline-flex items-center gap-1.5">
-        <Avatar label={initials(String(value))} size={16} />
-        {String(value)}
-      </span>
-    );
-  return <span className="break-words">{String(value)}</span>;
 }

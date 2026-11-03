@@ -30,6 +30,10 @@ export type FieldDef = {
   showWhen?: { field: string; in: readonly string[] };
   calculated?: boolean;
   placeholder?: string;
+  /** Relation to several records rather than one. */
+  many?: boolean;
+  /** Not editable yet: says when it arrives, e.g. "Phase 3". */
+  arrives?: string;
 };
 
 export type FieldSection = { title: string; fields: FieldDef[] };
@@ -77,10 +81,20 @@ const NON_NDIS = [
   "Grandfathered HCP",
 ] as const;
 
+export const CLIENT_STATUSES = ["Active", "Inactive"] as const;
+
 export const CLIENT_SECTIONS: FieldSection[] = [
   {
     title: "Client Information",
     fields: [
+      { key: "name", label: "Name", type: "text", required: true },
+      {
+        key: "status",
+        label: "Status",
+        type: "select",
+        required: true,
+        options: CLIENT_STATUSES,
+      },
       { key: "email", label: "Email", type: "email" },
       { key: "phone", label: "Phone", type: "phone" },
       { key: "address", label: "Address", type: "address" },
@@ -182,16 +196,17 @@ export const CLIENT_SECTIONS: FieldSection[] = [
   {
     title: "Team and Preferences",
     fields: [
-      { key: "business", label: "Business", type: "relation" },
+      { key: "business", label: "Business", type: "relation", calculated: true },
       { key: "careManager", label: "Care Manager", type: "relation" },
       { key: "scheduler", label: "Scheduler", type: "relation" },
-      { key: "preferredStaff", label: "Preferred Staff", type: "relation" },
-      { key: "doNotSend", label: "Do Not Send", type: "relation" },
-      { key: "compliance", label: "Compliance", type: "relation" },
+      { key: "preferredStaff", label: "Preferred Staff", type: "relation", many: true },
+      { key: "doNotSend", label: "Do Not Send", type: "relation", many: true },
+      { key: "compliance", label: "Compliance", type: "relation", arrives: "Phase 3" },
       {
         key: "shiftNotesTemplate",
         label: "Shift Notes Template",
         type: "select",
+        arrives: "Phase 2",
       },
     ],
   },
@@ -234,6 +249,76 @@ export const CLIENT_COMPLETENESS_KEYS = [
   "careManager",
   "scheduler",
 ] as const;
+
+export const CLIENT_FIELDS: FieldDef[] = CLIENT_SECTIONS.flatMap((s) => s.fields);
+
+/** Labels of the fields that make this client "Incomplete". */
+export function missingClientFields(record: Record<string, unknown>) {
+  return CLIENT_COMPLETENESS_KEYS.filter((key) => !record[key]).map(
+    (key) => CLIENT_FIELDS.find((f) => f.key === key)?.label ?? key,
+  );
+}
+
+/** The NDIS type or level that applies to this client's funding type. */
+export function clientTypeLevel(record: Record<string, unknown>) {
+  const value =
+    record.fundingType === "NDIS"
+      ? record.ndisType
+      : (NON_NDIS as readonly unknown[]).includes(record.fundingType)
+        ? record.level
+        : undefined;
+  return typeof value === "string" ? value : undefined;
+}
+
+/* ---------- Client contacts ----------
+ * Not in Imploy's field list: the brief names family, coordinators and plan
+ * managers, so these fields need confirming against Imploy's Contacts tab.
+ */
+
+export const CONTACT_TYPES = ["Family", "Support Coordinator", "Plan Manager", "Other"] as const;
+
+export const CONTACT_FIELDS: FieldDef[] = [
+  { key: "name", label: "Name", type: "text", required: true },
+  { key: "contactType", label: "Type", type: "select", required: true, options: CONTACT_TYPES },
+  { key: "relationship", label: "Relationship", type: "text" },
+  { key: "phone", label: "Phone", type: "phone" },
+  { key: "email", label: "Email", type: "email" },
+  { key: "notes", label: "Notes", type: "longtext" },
+];
+
+/* ---------- Client files ----------
+ * The bucket enforces the same limits (supabase/migrations).
+ */
+
+export const CLIENT_FILES_BUCKET = "client-files";
+export const CLIENT_FILE_MAX_BYTES = 25 * 1024 * 1024;
+
+const CLIENT_FILE_TYPES = new Map([
+  ["pdf", "application/pdf"],
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["png", "image/png"],
+  ["webp", "image/webp"],
+  ["heic", "image/heic"],
+  ["txt", "text/plain"],
+  ["csv", "text/csv"],
+  ["doc", "application/msword"],
+  ["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ["xls", "application/vnd.ms-excel"],
+  ["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+]);
+
+/** File extensions offered in the upload picker. */
+export const CLIENT_FILE_ACCEPT = [...CLIENT_FILE_TYPES.keys()].map((ext) => `.${ext}`).join(",");
+
+/**
+ * The content type to store for an upload, or undefined if it isn't allowed.
+ * Browsers sometimes send no type at all, so the extension is the fallback.
+ */
+export function clientFileType(name: string, browserType: string) {
+  if ([...CLIENT_FILE_TYPES.values()].includes(browserType)) return browserType;
+  return CLIENT_FILE_TYPES.get(name.split(".").pop()?.toLowerCase() ?? "");
+}
 
 /* ---------- Staff (22 attributes in Imploy) ---------- */
 
@@ -370,6 +455,11 @@ export const SITE_SECTIONS: FieldSection[] = [
     ],
   },
 ];
+
+/** Can people change this field by hand? (Not whether this person may.) */
+export function isFieldEditable(field: FieldDef) {
+  return !field.calculated && !field.arrives;
+}
 
 /** Is this field visible for the given record? */
 export function isFieldVisible(

@@ -11,6 +11,7 @@ import {
   Phone,
   ShieldCheck,
   Tag,
+  TriangleAlert,
   User,
   UserRound,
   Users,
@@ -20,7 +21,13 @@ import { DataTable, type Column, type View } from "@/components/table/data-table
 import { Chip, StatusPill, type Tone } from "@/components/ui/primitives";
 import { formatDate } from "@/components/popup/popup";
 import type { ClientRecord, StaffOption } from "@/lib/records";
-import { CLASSIFICATIONS, FUNDING_TYPES, GENDERS } from "@/lib/fields";
+import {
+  CLASSIFICATIONS,
+  FUNDING_TYPES,
+  GENDERS,
+  clientTypeLevel,
+  missingClientFields,
+} from "@/lib/fields";
 import { CreateClientPopup } from "./create-client-popup";
 import { createClientAction } from "./actions";
 
@@ -52,8 +59,11 @@ const columns: Column<ClientRecord>[] = [
     label: "Type / Level",
     icon: Tag,
     width: 170,
-    value: (r) => String(r.ndisType ?? r.level ?? ""),
-    render: (r) => (r.ndisType ?? r.level ? <Chip>{String(r.ndisType ?? r.level)}</Chip> : null),
+    value: (r) => clientTypeLevel(r) ?? "",
+    render: (r) => {
+      const typeLevel = clientTypeLevel(r);
+      return typeLevel ? <Chip>{typeLevel}</Chip> : null;
+    },
   },
   {
     key: "classification",
@@ -98,12 +108,29 @@ const columns: Column<ClientRecord>[] = [
     filterOptions: ["Active", "Inactive"],
     render: (r) => <StatusPill status={r.status} />,
   },
+  {
+    key: "profile",
+    label: "Profile",
+    icon: TriangleAlert,
+    width: 120,
+    filterOptions: ["Complete", "Incomplete"],
+    value: (r) => (missingClientFields(r).length ? "Incomplete" : "Complete"),
+    render: (r) => {
+      const missing = missingClientFields(r);
+      return missing.length ? (
+        <span title={`Missing: ${missing.join(", ")}`}>
+          <Chip tone="orange">Incomplete</Chip>
+        </span>
+      ) : null;
+    },
+  },
 ];
 
 /** Quick picks offered when saving a new view. */
 const presets: View[] = [
   { key: "ndis", label: "NDIS participants", filters: [{ column: "fundingType", values: ["NDIS"] }] },
   { key: "allergies", label: "Participants with allergies", filters: [{ column: "allergies", values: ["__any__"] }] },
+  { key: "incomplete", label: "Incomplete profiles", filters: [{ column: "profile", values: ["Incomplete"] }] },
 ];
 
 export function ClientsView({

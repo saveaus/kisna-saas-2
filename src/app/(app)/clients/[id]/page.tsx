@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ClientRecordView } from "@/features/clients/client-record";
-import { getClient } from "@/lib/data/records.server";
+import { getClient, listStaffOptions } from "@/lib/data/records.server";
 import { getSession, sessionCan } from "@/lib/session";
 
 export default async function ClientPage({ params }: PageProps<"/clients/[id]">) {
@@ -12,7 +12,16 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
   // Not found also covers "not allowed": the database hides clients you can't see.
   if (!client) notFound();
 
+  const canEdit = sessionCan(session, "clients_sites", "full");
+  const staffOptions = canEdit ? await listStaffOptions() : [];
+
   return (
-    <ClientRecordView client={client} canSeeFinance={sessionCan(session, "finance", "read")} />
+    <ClientRecordView
+      client={client}
+      canSeeFinance={sessionCan(session, "finance", "read")}
+      canEdit={canEdit}
+      canEditFinance={sessionCan(session, "finance", "full")}
+      staffOptions={staffOptions}
+    />
   );
 }

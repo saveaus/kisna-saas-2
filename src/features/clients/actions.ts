@@ -3,8 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/session";
-import { CLIENT_COLUMNS, toRow, type FieldValue } from "@/lib/records";
+import {
+  CLIENT_COLUMNS,
+  CLIENT_FINANCIAL_COLUMNS,
+  toRow,
+  type FieldValue,
+} from "@/lib/records";
 import { FUNDING_TYPES } from "@/lib/fields";
+import { validateClientField } from "./validate";
 
 export type ActionResult = { ok: true; id: number } | { ok: false; error: string };
 
@@ -41,4 +47,154 @@ export async function createClientAction(input: {
 
   revalidatePath("/clients");
   return { ok: true, id: Number(data.id) };
+}
+
+export type SaveResult = { ok: true } | { ok: false; error: string };
+
+const isId = (id: unknown): id is number =>
+  typeof id === "number" && Number.isSafeInteger(id) && id > 0;
+
+/** Plain words for the database's refusals; anything else passes through. */
+function friendly(error: { code?: string; message: string }) {
+  return error.code === "42501" ? "You don't have permission to do that." : error.message;
+}
+
+function refreshClient(clientId: number) {
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+}
+
+/** Save one field from the Details panel. Bank details need Finance: full access. */
+export async function updateClientFieldAction(input: {
+  clientId: number;
+  key: string;
+  value: FieldValue;
+}): Promise<SaveResult> {
+  const isFinancial = Object.hasOwn(CLIENT_FINANCIAL_COLUMNS, input.key);
+  // Outside try/catch so an expired session can redirect to /login.
+  const check = await checkPermission(isFinancial ? "finance" : "clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+  const { workspaceId } = check.session;
+
+  if (!isId(input.clientId)) return { ok: false, error: "Client not found." };
+  const valid = validateClientField(input.key, input.value);
+  if (!valid.ok) return valid;
+
+  const supabase = await createClient();
+  const write = { [input.key]: valid.value };
+
+  if (isFinancial) {
+    const { error } = await supabase.from("client_financials").upsert(
+      {
+        ...toRow(write, CLIENT_FINANCIAL_COLUMNS),
+        client_id: input.clientId,
+        workspace_id: workspaceId,
+      },
+      { onConflict: "client_id" },
+    );
+    if (error) return { ok: false, error: friendly(error) };
+  } else {
+    const { data, error } = await supabase
+      .from("clients")
+      .update(toRow(write, CLIENT_COLUMNS))
+      .eq("workspace_id", workspaceId)
+      .eq("id", input.clientId)
+      .select("id");
+    if (error) return { ok: false, error: friendly(error) };
+    if (!data.length) return { ok: false, error: "Client not found." };
+  }
+
+  refreshClient(input.clientId);
+  return { ok: true };
+}
+
+/** Set or clear the care manager or scheduler. */
+export async function updateClientStaffAction(input: {
+  clientId: number;
+  key: "careManager" | "scheduler";
+  staffId: number | null;
+}): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  const column = { careManager: "care_manager_id", scheduler: "scheduler_id" }[input.key];
+  if (!column || !isId(input.clientId)) return { ok: false, error: "Client not found." };
+  if (input.staffId !== null && !isId(input.staffId)) {
+    return { ok: false, error: "Choose someone from the list." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("clients")
+    .update({ [column]: input.staffId })
+    .eq("workspace_id", check.session.workspaceId)
+    .eq("id", input.clientId)
+    .select("id");
+  if (error) return { ok: false, error: friendly(error) };
+  if (!data.length) return { ok: false, error: "Client not found." };
+
+  refreshClient(input.clientId);
+  return { ok: true };
+}
+
+/**
+ * Set the preferred or do-not-send staff. Each person has one row per client,
+ * so adding someone here moves them from any other list. Removing someone
+ * deletes the row, which also ends their access to this client: if in doubt,
+ * access is taken away rather than left behind.
+ */
+export async function setClientStaffListAction(input: {
+  clientId: number;
+  key: "preferredStaff" | "doNotSend";
+  staffIds: number[];
+}): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+  const { workspaceId } = check.session;
+
+  const kind = { preferredStaff: "preferred", doNotSend: "do_not_send" }[input.key];
+  if (!kind || !isId(input.clientId)) return { ok: false, error: "Client not found." };
+  if (!Array.isArray(input.staffIds) || !input.staffIds.every(isId)) {
+    return { ok: false, error: "Choose people from the list." };
+  }
+  const wanted = [...new Set(input.staffIds)];
+
+  const supabase = await createClient();
+  const { data: current, error: readError } = await supabase
+    .from("client_team")
+    .select("staff_id")
+    .eq("workspace_id", workspaceId)
+    .eq("client_id", input.clientId)
+    .eq("kind", kind);
+  if (readError) return { ok: false, error: friendly(readError) };
+
+  const currentIds = (current ?? []).map((row) => Number(row.staff_id));
+  const removed = currentIds.filter((id) => !wanted.includes(id));
+  const added = wanted.filter((id) => !currentIds.includes(id));
+
+  if (removed.length) {
+    const { error } = await supabase
+      .from("client_team")
+      .delete()
+      .eq("workspace_id", workspaceId)
+      .eq("client_id", input.clientId)
+      .eq("kind", kind)
+      .in("staff_id", removed);
+    if (error) return { ok: false, error: friendly(error) };
+  }
+  if (added.length) {
+    const { error } = await supabase.from("client_team").upsert(
+      added.map((staffId) => ({
+        client_id: input.clientId,
+        staff_id: staffId,
+        workspace_id: workspaceId,
+        kind,
+      })),
+      { onConflict: "client_id,staff_id" },
+    );
+    if (error) return { ok: false, error: friendly(error) };
+  }
+
+  refreshClient(input.clientId);
+  return { ok: true };
 }

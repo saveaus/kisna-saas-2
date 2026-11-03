@@ -54,7 +54,7 @@ export function StaffRecordView({
       record={{ ...person, employeeId: String(person.id) }}
       related={[
         { title: "Upcoming shifts", items: [], empty: "Roster arrives in Phase 2" },
-        { title: "Clients", items: [], empty: "Client assignments arrive in Step 3" },
+        { title: "Clients", items: [], empty: "Client assignments arrive in Step 4" },
       ]}
       tabs={[
         {

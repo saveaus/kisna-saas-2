@@ -201,7 +201,7 @@ export function DataTable<T extends Row>({
         title={title}
         actions={
           <>
-            <Button variant="bare" icon={Upload} disabled title="Arrives in Step 3">
+            <Button variant="bare" icon={Upload} disabled title="Arrives after Step 4">
               Import CSV
             </Button>
             {onCreate && (
@@ -383,7 +383,7 @@ export function DataTable<T extends Row>({
               >
                 Reset
               </Button>
-              <Button variant="bare" disabled title="Saved per workspace in Step 3">
+              <Button variant="bare" disabled title="Arrives after Step 4">
                 Save default for everyone
               </Button>
             </div>

@@ -14,11 +14,22 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { RecordView } from "@/components/record/record-view";
+import { RecordView, type RecordEditing } from "@/components/record/record-view";
 import { Button, Chip, EmptyState } from "@/components/ui/primitives";
-import type { ClientRecord, NoteItem } from "@/lib/records";
-import { CLIENT_COMPLETENESS_KEYS, CLIENT_SECTIONS } from "@/lib/fields";
+import type { ClientRecord, FieldValue, NoteItem, StaffOption } from "@/lib/records";
+import {
+  CLIENT_SECTIONS,
+  clientTypeLevel,
+  isFieldEditable,
+  missingClientFields,
+  type FieldDef,
+} from "@/lib/fields";
 import { fundingTone } from "./clients-view";
+import {
+  setClientStaffListAction,
+  updateClientFieldAction,
+  updateClientStaffAction,
+} from "./actions";
 
 function Highlight({ label, value, missing }: { label: string; value?: string; missing?: boolean }) {
   return (
@@ -29,6 +40,21 @@ function Highlight({ label, value, missing }: { label: string; value?: string; m
       </div>
     </div>
   );
+}
+
+const FINANCE_SECTION = "Client Financial Details";
+const FINANCE_KEYS = new Set(
+  CLIENT_SECTIONS.find((s) => s.title === FINANCE_SECTION)?.fields.map((f) => f.key),
+);
+
+/** Labels for staff pickers. Two people with one name get their ID to tell them apart. */
+function staffLabels(options: StaffOption[]) {
+  const counts = new Map<string, number>();
+  for (const s of options) counts.set(s.name, (counts.get(s.name) ?? 0) + 1);
+  return options.map((s) => ({
+    id: s.id,
+    label: (counts.get(s.name) ?? 0) > 1 ? `${s.name} (#${s.id})` : s.name,
+  }));
 }
 
 function ActivityList({ items }: { items: { what: string; who: string; when: string }[] }) {
@@ -64,7 +90,10 @@ function Notes({ initial }: { initial: NoteItem[] }) {
           <Button
             disabled={!draft.trim()}
             onClick={() => {
-              setNotes([{ author: "You", body: draft.trim(), when: "just now" }, ...notes]);
+              setNotes([
+                { id: Date.now(), author: "You", body: draft.trim(), when: "just now", edited: false, canEdit: false, canDelete: false },
+                ...notes,
+              ]);
               setDraft("");
             }}
           >
@@ -94,16 +123,66 @@ const soon = (icon: typeof Wallet, title: string, when: string) => (
 export function ClientRecordView({
   client,
   canSeeFinance,
+  canEdit,
+  canEditFinance,
+  staffOptions,
 }: {
   client: ClientRecord;
   canSeeFinance: boolean;
+  canEdit: boolean;
+  canEditFinance: boolean;
+  staffOptions: StaffOption[];
 }) {
-  const missing = CLIENT_COMPLETENESS_KEYS.filter((k) => !client[k]);
-  // Notes and activity are stored from Step 3.
+  // Replaced below as each part of Step 3 lands.
   const activity: { what: string; who: string; when: string }[] = [];
   const notes: NoteItem[] = [];
   const allergies = Array.isArray(client.allergies) ? client.allergies.join(", ") : undefined;
   const funding = client.fundingType ? String(client.fundingType) : undefined;
+
+  const staff = staffLabels(staffOptions);
+  const staffNames = staff.map((s) => s.label);
+  const staffId = (label: FieldValue) => staff.find((s) => s.label === label)?.id;
+
+  const editing: RecordEditing | undefined =
+    canEdit || canEditFinance
+      ? {
+          options: {
+            careManager: staffNames,
+            scheduler: staffNames,
+            preferredStaff: staffNames,
+            doNotSend: staffNames,
+          },
+          canEdit: (field: FieldDef) => {
+            if (!isFieldEditable(field)) return false;
+            if (FINANCE_KEYS.has(field.key)) return canEditFinance;
+            if (field.type === "relation" && staffNames.length === 0) return false;
+            return canEdit;
+          },
+          onSave: async (field, value) => {
+            const result = await (async () => {
+              if (field.key === "careManager" || field.key === "scheduler") {
+                return updateClientStaffAction({
+                  clientId: client.id,
+                  key: field.key,
+                  staffId: staffId(value) ?? null,
+                });
+              }
+              if (field.key === "preferredStaff" || field.key === "doNotSend") {
+                const labels = Array.isArray(value) ? value : [];
+                return setClientStaffListAction({
+                  clientId: client.id,
+                  key: field.key,
+                  staffIds: labels
+                    .map(staffId)
+                    .filter((id): id is number => id !== undefined),
+                });
+              }
+              return updateClientFieldAction({ clientId: client.id, key: field.key, value });
+            })();
+            return result.ok ? undefined : result.error;
+          },
+        }
+      : undefined;
 
   return (
     <RecordView
@@ -112,16 +191,15 @@ export function ClientRecordView({
       name={client.name}
       status={client.status}
       idLabel={`ID: ${client.id}`}
-      incomplete={missing.map(
-        (k) => CLIENT_SECTIONS.flatMap((s) => s.fields).find((f) => f.key === k)?.label ?? k,
-      )}
+      incomplete={missingClientFields(client)}
       detailsTitle="Client details"
       sections={
         canSeeFinance
           ? CLIENT_SECTIONS
-          : CLIENT_SECTIONS.filter((sec) => sec.title !== "Client Financial Details")
+          : CLIENT_SECTIONS.filter((sec) => sec.title !== FINANCE_SECTION)
       }
       record={client}
+      editing={editing}
       related={[
         { title: "Contacts", items: [], empty: "No contacts yet (Step 3)" },
         { title: "Upcoming shifts", items: [], empty: "Roster arrives in Phase 2" },
@@ -146,7 +224,7 @@ export function ClientRecordView({
                     )}
                   </div>
                   <Highlight label="Classification" value={client.classification as string} />
-                  <Highlight label="Level / Type" value={(client.ndisType ?? client.level) as string} />
+                  <Highlight label="Level / Type" value={clientTypeLevel(client)} />
                   <Highlight label="Care Manager" value={client.careManager as string} missing />
                   <Highlight label="Scheduler" value={client.scheduler as string} missing />
                   <Highlight label="Allergies" value={allergies} />

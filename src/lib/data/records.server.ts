@@ -22,12 +22,21 @@ import {
  */
 
 const CLIENT_SELECT = `
-  id, ${Object.values(CLIENT_COLUMNS).join(", ")},
+  id, care_manager_id, scheduler_id, ${Object.values(CLIENT_COLUMNS).join(", ")},
   care_manager:staff!clients_care_manager_id_fkey(id, name),
   scheduler:staff!clients_scheduler_id_fkey(id, name)
 `;
 
 type Named = { id: number; name: string } | null;
+
+/**
+ * Support workers can't read other staff, so the name comes back empty even
+ * when someone is assigned. "Assigned" says so without showing who, and stops
+ * the client looking incomplete to them.
+ */
+function assignedName(person: Named, id: unknown) {
+  return person?.name ?? (id ? "Assigned" : undefined);
+}
 
 function toClient(row: Record<string, unknown>): ClientRecord {
   const careManager = row.care_manager as Named;
@@ -37,8 +46,8 @@ function toClient(row: Record<string, unknown>): ClientRecord {
     id: Number(row.id),
     name: String(row.name),
     status: row.status as ClientRecord["status"],
-    careManager: careManager?.name,
-    scheduler: scheduler?.name,
+    careManager: assignedName(careManager, row.care_manager_id),
+    scheduler: assignedName(scheduler, row.scheduler_id),
     business: undefined,
   };
 }
@@ -92,6 +101,23 @@ export async function getClient(id: number) {
     if (fin) Object.assign(client, fromRow(fin as unknown as Record<string, unknown>, CLIENT_FINANCIAL_COLUMNS));
   }
   client.business = session.workspaceName;
+
+  // Preferred and do-not-send staff are rows in the client's team.
+  const { data: team } = await supabase
+    .from("client_team")
+    .select("kind, staff:staff!client_team_staff_id_fkey(name)")
+    .eq("workspace_id", session.workspaceId)
+    .eq("client_id", id);
+  const namesFor = (kind: string) => {
+    const names = (team ?? [])
+      .filter((t) => t.kind === kind)
+      .map((t) => (t.staff as unknown as { name: string } | null)?.name)
+      .filter((name): name is string => Boolean(name));
+    return names.length ? names : undefined;
+  };
+  client.preferredStaff = namesFor("preferred");
+  client.doNotSend = namesFor("do_not_send");
+
   return client;
 }
 

@@ -4,7 +4,7 @@
  * script to insert them. Never use real participants.
  */
 
-import type { ActivityItem, ClientRecord, NoteItem, SiteRecord, StaffRecord } from "./records";
+import type { ClientRecord, SiteRecord, StaffRecord } from "./records";
 
 export const staff: StaffRecord[] = [
   {
@@ -386,22 +386,3 @@ export const demoViews: { object: "clients" | "staff" | "sites"; name: string; f
   { object: "staff", name: "Support workers", filters: [{ column: "role", values: ["Service Delivery Worker"] }] },
   { object: "sites", name: "Group homes", filters: [{ column: "siteType", values: ["Supported Independent Living"] }] },
 ];
-
-export const clientActivity: Record<number, ActivityItem[]> = {
-  1: [
-    { what: "Care Plan Created", who: "Alex Morgan", when: "5 months ago" },
-    { what: "Client Data Updated", who: "Alex Morgan", when: "5 months ago" },
-  ],
-  2: [{ what: "Budget Created", who: "Alex Morgan", when: "5 months ago" }],
-};
-
-export const clientNotes: Record<number, NoteItem[]> = {
-  1: [
-    {
-      author: "Alex Morgan",
-      body: "Prefers morning visits. Call the day before to confirm.",
-      when: "4 months ago",
-    },
-  ],
-};
-

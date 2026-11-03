@@ -26,8 +26,33 @@ export type SiteRecord = {
   [key: string]: FieldValue;
 };
 
-export type ActivityItem = { what: string; who: string; when: string };
-export type NoteItem = { author: string; body: string; when: string };
+export type ActivityItem = { id: number; what: string; who: string; when: string };
+export type NoteItem = {
+  id: number;
+  author: string;
+  body: string;
+  when: string;
+  edited: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+};
+export type ContactItem = {
+  id: number;
+  name: string;
+  contactType: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+};
+export type FileItem = {
+  id: number;
+  name: string;
+  size: number;
+  mimeType: string;
+  uploadedBy: string;
+  when: string;
+};
 export type StaffOption = { id: number; name: string };
 
 /** UI key → clients column. Relations (care manager, scheduler) are handled separately. */
@@ -67,6 +92,15 @@ export const CLIENT_FINANCIAL_COLUMNS = {
   accountNumber: "account_number",
   itfStatus: "itf_status",
   itfValue: "itf_value",
+} as const;
+
+export const CONTACT_COLUMNS = {
+  name: "name",
+  contactType: "contact_type",
+  relationship: "relationship",
+  phone: "phone",
+  email: "email",
+  notes: "notes",
 } as const;
 
 export const STAFF_COLUMNS = {

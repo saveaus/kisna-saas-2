@@ -135,6 +135,7 @@ export function ChipSelect({
   disabled,
   disabledHint,
   multiple,
+  width = 240,
 }: {
   icon: LucideIcon;
   placeholder: string;
@@ -144,6 +145,8 @@ export function ChipSelect({
   disabled?: boolean;
   disabledHint?: string;
   multiple?: boolean;
+  /** Dropdown width: narrower where it sits inside the Details panel. */
+  width?: number;
 }) {
   const [query, setQuery] = useState("");
   const selected = Array.isArray(value) ? value : value ? [value] : [];
@@ -172,7 +175,7 @@ export function ChipSelect({
 
   return (
     <Popover
-      width={240}
+      width={width}
       trigger={({ toggle }) => (
         <button
           type="button"
