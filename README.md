@@ -72,7 +72,7 @@ other logins change straight away.
 | Clients | Views, filters, Display menu, column menus, Create client, Profile column to find incomplete clients |
 | Client record | Click any field in Details to edit it (bank details need Finance: Full), Overview with activity, Notes, Contacts, Files, Incomplete flag |
 | Staff | Create staff (role, type, contact), Login column |
-| Staff record | Send invite (superadmin), Compliance document list, Employment fields |
+| Staff record | Click any field in Details to edit it (Manage Users: Full), Send invite (superadmin), Compliance document list, Employment fields |
 | Sites | Sites table |
 | Settings → Permissions | Imploy's permission matrix per role |
 

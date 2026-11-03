@@ -138,6 +138,8 @@ Address, Gender, Start date, Reference no., Care manager, Scheduler, plus
 ## Staff (22 attributes)
 
 ### Contact & Employment
+Care OS also lists Name and Status here so they can be edited.
+
 | Field | Type | Constraint | Options / notes |
 | --- | --- | --- | --- |
 | Staff Name | Text | Required, locked | |

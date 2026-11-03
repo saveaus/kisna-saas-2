@@ -57,9 +57,11 @@ phases plug straight in.
   they're marked Do Not Send.
 - **Everyone sees their own staff record.**
 - **Bank and ITF details** sit in `client_financials` and need Finance access.
-- **Only a Superadmin** can grant or remove Superadmin, link a login to a
-  staff record (invites), change permissions, delete clients, or read the
-  audit log.
+- **Only a Superadmin** can grant or remove Superadmin, change a Superadmin's
+  record, link a login to a staff record (invites), change permissions, delete
+  clients, or read the audit log.
+- **Nobody can change their own role or status**, so they can't lock themselves
+  out by accident. A sign-in email can't be changed on the staff record yet.
 - **A workspace always keeps at least one active Superadmin.**
 - **Workspaces are fully separate.** Child records (team, financials, care
   manager, site manager) must belong to the same workspace.

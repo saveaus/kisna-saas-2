@@ -53,13 +53,17 @@ On `main`:
 - **Saved views** on all three tables: name on save (+), rename, save
   filters to view, delete; stored per person in `saved_views`.
 
-On branch `step-3-clients`, not merged yet:
+On branches, not merged yet. `step-4-staff` is built on `simpler-sidebar`, which is
+built on `step-3-clients`, so merge them in that order:
 
 - **Step 3, Clients:** click-to-edit in the Details panel, Notes, Contacts,
   Files (private bucket, one-minute links, shared with support workers per file),
   Incomplete flag and activity history. New migrations
   `20261103020000_client_records.sql`, `20261103030000_client_file_sharing.sql` and
   `20261103040000_exact_api_grants.sql`, tested per role.
+- **Sidebar** (`simpler-sidebar`): grouped the way Imploy does, most of it folded.
+- **Step 4, Staff, editing only** (`step-4-staff`): click-to-edit in the Details
+  panel. Notes, Files and Activity are still placeholders.
 - **Fictional demo data** in `src/lib/demo-data.ts`, added in Cursor. The seed
   fills the project's oldest workspace, or creates Demo Provider if there is
   none.
@@ -109,14 +113,25 @@ grants it**, and `supabase/tests/grants.test.ts` must list it.
 - The contact fields and types are right.
 - Import CSV and "Save default for everyone" arrive after Step 4.
 
+## To decide before real data
+
+- **Database region.** The project is in Frankfurt (`eu-central-1`), about 440 ms
+  per trip from Australia, so saves take about 2 seconds. Australian data should be
+  in Sydney (`ap-southeast-2`): see "AI provider and data region" in the brief. A
+  project can't change region, so this means a new project, then `npm run db:push`
+  and `npm run seed`. It's cheapest while there's only demo data. Izak's call.
+- **Support worker access.** Izak's comment, 3 Nov, not built yet: their permissions
+  should be much lower, with no access to the AI or to some other admin features.
+  Today their defaults include Chat: Full (`create_workspace`), which covers the
+  assistant, and the Ask bar shows on every page. Izak to say which features.
+
 ## What's next
 
-1. Izak checks Step 3 and the sidebar by hand, then merge them (`step-3-clients`
-   first, then `simpler-sidebar`).
+1. Izak checks Step 3, the sidebar and staff editing by hand, then merge them
+   in the order above.
 2. Finish the email settings above and test invites.
-3. **Step 4, Staff:** same for staff: editing, Notes, Files, Activity. Prompt is
-   in `docs/brief.md`. `RecordView`'s `editing` prop, `DataTable`'s `embedded`
-   prop and `audit_log` are ready to reuse.
+3. **Finish Step 4, Staff:** Notes, Files and Activity. Prompt is in
+   `docs/brief.md`. `DataTable`'s `embedded` prop and `audit_log` are ready to reuse.
 4. Then Phase 2 (roster) per `docs/brief.md`.
 
 ## Rules that always apply
