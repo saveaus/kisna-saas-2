@@ -121,30 +121,34 @@ export function ClientContacts({
       key: "name",
       label: "Name",
       icon: User,
-      width: 200,
-      render: (c) =>
-        canEdit ? (
-          <button type="button" onClick={() => onEdit(c)} className="font-medium hover:underline">
-            {c.name}
-          </button>
-        ) : (
-          <span className="font-medium">{c.name}</span>
-        ),
+      width: 210,
+      render: (c) => (
+        <>
+          {canEdit ? (
+            <button type="button" onClick={() => onEdit(c)} className="font-medium hover:underline">
+              {c.name}
+            </button>
+          ) : (
+            <span className="font-medium">{c.name}</span>
+          )}
+          {c.relationship && <span className="text-ink-4"> · {c.relationship}</span>}
+        </>
+      ),
     },
     {
       key: "contactType",
       label: "Type",
       icon: Tag,
-      width: 170,
+      width: 150,
       filterOptions: CONTACT_TYPES,
       render: (c) => <Chip>{c.contactType}</Chip>,
     },
-    { key: "relationship", label: "Relationship", icon: Heart, width: 130 },
+    { key: "relationship", label: "Relationship", icon: Heart, width: 130, defaultHidden: true },
     {
       key: "phone",
       label: "Phone",
       icon: Phone,
-      width: 140,
+      width: 120,
       render: (c) =>
         c.phone ? (
           <a href={`tel:${c.phone}`} className="hover:underline">
@@ -156,7 +160,7 @@ export function ClientContacts({
       key: "email",
       label: "Email",
       icon: Mail,
-      width: 220,
+      width: 190,
       render: (c) =>
         c.email ? (
           <a href={`mailto:${c.email}`} className="text-[var(--blue-ink)] hover:underline">
@@ -164,13 +168,13 @@ export function ClientContacts({
           </a>
         ) : null,
     },
-    { key: "notes", label: "Notes", icon: StickyNote, width: 240 },
+    { key: "notes", label: "Notes", icon: StickyNote, width: 240, defaultHidden: true },
     ...(canEdit
       ? [
           {
             key: "actions",
             label: "Actions",
-            width: 150,
+            width: 90,
             value: () => "",
             render: (c: ContactItem) => <DeleteContact clientId={clientId} contactId={c.id} />,
           },

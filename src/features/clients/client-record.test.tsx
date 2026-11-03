@@ -75,6 +75,25 @@ describe("client record", () => {
     expect(html).toContain("Helen Doyle");
   });
 
+  it("keeps working tabs in the top bar and tucks placeholders under More", () => {
+    const html = render();
+    for (const tab of ["Overview", "Notes", "Files", "Contacts", "More"]) {
+      expect(html).toMatch(new RegExp(`</svg>${tab}</button>|>${tab}<svg`));
+    }
+    for (const tab of ["Budget", "Care Plan", "Observe", "Orders", "Roster"]) {
+      expect(html).not.toContain(`</svg>${tab}</button>`);
+    }
+  });
+
+  it("keeps acronyms in edit prompts", () => {
+    // HCP clients show the Funding section, which is open by default.
+    const html = render();
+    expect(html).toContain("Set ACN…");
+    expect(html).toContain("Set CRN…");
+    expect(html).toContain("Set care recipient ID…");
+    expect(html).toContain("Set date of birth…");
+  });
+
   it("flags an incomplete profile", () => {
     expect(render()).toContain("Incomplete");
     expect(
@@ -169,7 +188,6 @@ describe("files tab", () => {
     const html = renderFiles(true);
     expect(html).toContain('href="/clients/7/files/9"');
     expect(html).not.toContain("storage");
-    expect(html).toContain("2 KB");
   });
 
   it("only offers upload and delete to people with edit access", () => {

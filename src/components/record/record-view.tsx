@@ -37,6 +37,8 @@ export type RecordTab = {
   label: string;
   icon: LucideIcon;
   content: ReactNode;
+  /** Tucked under the "More" menu, to keep the top bar short. */
+  more?: boolean;
 };
 
 export type RelatedSection = {
@@ -63,6 +65,11 @@ export type CreateItem = {
   tab?: string;
   onSelect?: () => void;
 };
+
+const TAB_CLASS =
+  "inline-flex h-6 shrink-0 items-center gap-1 rounded-[6px] border-[0.5px] px-[7px] text-[12px] font-medium";
+const TAB_ON = "border-line bg-hover text-ink";
+const TAB_OFF = "border-transparent text-ink-3 hover:bg-hover";
 
 export function RecordView({
   backHref,
@@ -97,6 +104,8 @@ export function RecordView({
   const [panelOpen, setPanelOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const active = tabs.find((t) => t.key === tab) ?? tabs[0];
+  const moreTabs = tabs.filter((t) => t.more);
+  const activeMoreTab = moreTabs.find((t) => t.key === active?.key);
 
   return (
     <div className="flex h-full min-h-0">
@@ -125,26 +134,55 @@ export function RecordView({
               </button>
             </div>
             <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
-              {tabs.map((t) => {
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setTab(t.key)}
-                    className={cn(
-                      "inline-flex h-6 shrink-0 items-center gap-1 rounded-[6px] border-[0.5px] px-[7px] text-[12px] font-medium",
-                      t.key === active?.key
-                        ? "border-line bg-hover text-ink"
-                        : "border-transparent text-ink-3 hover:bg-hover",
-                    )}
-                  >
-                    <Icon size={12} strokeWidth={1.75} />
-                    {t.label}
-                  </button>
-                );
-              })}
+              {tabs
+                .filter((t) => !t.more)
+                .map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setTab(t.key)}
+                      className={cn(TAB_CLASS, t.key === active?.key ? TAB_ON : TAB_OFF)}
+                    >
+                      <Icon size={12} strokeWidth={1.75} />
+                      {t.label}
+                    </button>
+                  );
+                })}
             </div>
+            {/* Outside the scrolling row, which would otherwise clip the menu. */}
+            {moreTabs.length > 0 && (
+              <Popover
+                width={180}
+                trigger={({ toggle }) => (
+                  <button
+                    type="button"
+                    onClick={toggle}
+                    className={cn(TAB_CLASS, activeMoreTab ? TAB_ON : TAB_OFF)}
+                  >
+                    {activeMoreTab?.label ?? "More"}
+                    <ChevronDown size={12} strokeWidth={1.75} />
+                  </button>
+                )}
+              >
+                {(close) =>
+                  moreTabs.map((t) => (
+                    <MenuItem
+                      key={t.key}
+                      icon={t.icon}
+                      selected={t.key === active?.key}
+                      onClick={() => {
+                        setTab(t.key);
+                        close();
+                      }}
+                    >
+                      {t.label}
+                    </MenuItem>
+                  ))
+                }
+              </Popover>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <button

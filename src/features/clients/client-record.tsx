@@ -251,10 +251,6 @@ export function ClientRecordView({
               />
             ),
           },
-          { key: "budget", label: "Budget", icon: Wallet, content: soon(Wallet, "Budget and billables", "Phase 4 (Finance)") },
-          { key: "careplan", label: "Care Plan", icon: ClipboardList, content: soon(ClipboardList, "Care plans", "Phase 3") },
-          { key: "observe", label: "Observe", icon: Eye, content: soon(Eye, "Incidents and AI cautions", "Phase 3") },
-          { key: "tasks", label: "Tasks", icon: ListChecks, content: soon(ListChecks, "Tasks", "Phase 6") },
           {
             key: "files",
             label: "Files",
@@ -275,8 +271,12 @@ export function ClientRecordView({
               />
             ),
           },
-          { key: "orders", label: "Orders", icon: Package, content: soon(Package, "Orders and consumables", "Phase 4") },
-          { key: "roster", label: "Roster", icon: CalendarDays, content: soon(CalendarDays, "This client's shifts", "Phase 2") },
+          { key: "budget", label: "Budget", icon: Wallet, more: true, content: soon(Wallet, "Budget and billables", "Phase 4 (Finance)") },
+          { key: "careplan", label: "Care Plan", icon: ClipboardList, more: true, content: soon(ClipboardList, "Care plans", "Phase 3") },
+          { key: "observe", label: "Observe", icon: Eye, more: true, content: soon(Eye, "Incidents and AI cautions", "Phase 3") },
+          { key: "tasks", label: "Tasks", icon: ListChecks, more: true, content: soon(ListChecks, "Tasks", "Phase 6") },
+          { key: "orders", label: "Orders", icon: Package, more: true, content: soon(Package, "Orders and consumables", "Phase 4") },
+          { key: "roster", label: "Roster", icon: CalendarDays, more: true, content: soon(CalendarDays, "This client's shifts", "Phase 2") },
         ]}
       />
       {contactPopup && (

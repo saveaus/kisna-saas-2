@@ -17,6 +17,12 @@ import { ChipSelect, formatDate } from "@/components/popup/popup";
 /** Saves a field. Resolves to an error message, or undefined if it worked. */
 export type FieldSave = (field: FieldDef, value: FieldValue) => Promise<string | undefined>;
 
+/** "Set care recipient ID": lower-case, but acronyms like ACN and BSB stay as they are. */
+function promptFor(label: string) {
+  const words = label.split(" ").map((w) => (w === w.toUpperCase() ? w : w.toLowerCase()));
+  return `Set ${words.join(" ")}`;
+}
+
 export function isEmptyValue(value: FieldValue) {
   return value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
 }
@@ -98,7 +104,7 @@ function ChoiceEditor({
     <>
       <ChipSelect
         icon={field.type === "relation" ? User : Tag}
-        placeholder={`Set ${field.label.toLowerCase()}`}
+        placeholder={promptFor(field.label)}
         value={Array.isArray(shown) ? shown : shown === undefined ? undefined : String(shown)}
         options={choices}
         multiple={multiple}
@@ -174,7 +180,7 @@ function TextEditor({
         className="-mx-1 block min-h-5 w-[calc(100%+8px)] rounded-[4px] px-1 text-left hover:bg-hover"
       >
         {isEmptyValue(value) ? (
-          <span className="text-ink-5">Set {field.label.toLowerCase()}…</span>
+          <span className="text-ink-5">{promptFor(field.label)}…</span>
         ) : (
           <FieldValueView field={field} value={value} plain />
         )}

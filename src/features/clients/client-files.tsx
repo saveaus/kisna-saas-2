@@ -120,7 +120,7 @@ export function ClientFiles({
       key: "name",
       label: "Name",
       icon: FileText,
-      width: 320,
+      width: 230,
       render: (f) => (
         <a
           href={`/clients/${clientId}/files/${f.id}`}
@@ -133,15 +133,6 @@ export function ClientFiles({
       ),
     },
     {
-      key: "size",
-      label: "Size",
-      icon: HardDrive,
-      width: 90,
-      render: (f) => formatSize(f.size),
-    },
-    { key: "uploadedBy", label: "Uploaded by", icon: User, width: 170 },
-    { key: "when", label: "Uploaded", icon: Calendar, width: 140 },
-    {
       key: "shared",
       label: "Support workers",
       icon: Eye,
@@ -151,12 +142,22 @@ export function ClientFiles({
       render: (f) =>
         canEdit ? <SharingControl clientId={clientId} file={f} /> : <SharedChip shared={f.shared} />,
     },
+    { key: "uploadedBy", label: "Uploaded by", icon: User, width: 130 },
+    { key: "when", label: "Uploaded", icon: Calendar, width: 110 },
+    {
+      key: "size",
+      label: "Size",
+      icon: HardDrive,
+      width: 90,
+      defaultHidden: true,
+      render: (f) => formatSize(f.size),
+    },
     ...(canEdit
       ? [
           {
             key: "actions",
             label: "Actions",
-            width: 150,
+            width: 100,
             value: () => "",
             render: (f: FileItem) => <DeleteFile clientId={clientId} fileId={f.id} />,
           },
