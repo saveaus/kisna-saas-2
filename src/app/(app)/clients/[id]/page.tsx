@@ -1,6 +1,12 @@
 import { notFound } from "next/navigation";
 import { ClientRecordView } from "@/features/clients/client-record";
 import { getClient, listStaffOptions } from "@/lib/data/records.server";
+import {
+  listClientActivity,
+  listClientContacts,
+  listClientFiles,
+  listClientNotes,
+} from "@/lib/data/client-records.server";
 import { getSession, sessionCan } from "@/lib/session";
 
 export default async function ClientPage({ params }: PageProps<"/clients/[id]">) {
@@ -13,7 +19,13 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
   if (!client) notFound();
 
   const canEdit = sessionCan(session, "clients_sites", "full");
-  const staffOptions = canEdit ? await listStaffOptions() : [];
+  const [staffOptions, notes, contacts, files, activity] = await Promise.all([
+    canEdit ? listStaffOptions() : Promise.resolve([]),
+    listClientNotes(clientId),
+    listClientContacts(clientId),
+    listClientFiles(clientId),
+    listClientActivity(clientId),
+  ]);
 
   return (
     <ClientRecordView
@@ -22,6 +34,10 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
       canEdit={canEdit}
       canEditFinance={sessionCan(session, "finance", "full")}
       staffOptions={staffOptions}
+      notes={notes}
+      contacts={contacts}
+      files={files}
+      activity={activity}
     />
   );
 }

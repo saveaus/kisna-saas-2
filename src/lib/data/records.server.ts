@@ -47,7 +47,9 @@ function toClient(row: Record<string, unknown>): ClientRecord {
     name: String(row.name),
     status: row.status as ClientRecord["status"],
     careManager: assignedName(careManager, row.care_manager_id),
+    careManagerId: row.care_manager_id ? Number(row.care_manager_id) : undefined,
     scheduler: assignedName(scheduler, row.scheduler_id),
+    schedulerId: row.scheduler_id ? Number(row.scheduler_id) : undefined,
     business: undefined,
   };
 }
@@ -105,18 +107,21 @@ export async function getClient(id: number) {
   // Preferred and do-not-send staff are rows in the client's team.
   const { data: team } = await supabase
     .from("client_team")
-    .select("kind, staff:staff!client_team_staff_id_fkey(name)")
+    .select("kind, staff_id, staff:staff!client_team_staff_id_fkey(name)")
     .eq("workspace_id", session.workspaceId)
     .eq("client_id", id);
-  const namesFor = (kind: string) => {
-    const names = (team ?? [])
-      .filter((t) => t.kind === kind)
-      .map((t) => (t.staff as unknown as { name: string } | null)?.name)
-      .filter((name): name is string => Boolean(name));
-    return names.length ? names : undefined;
-  };
-  client.preferredStaff = namesFor("preferred");
-  client.doNotSend = namesFor("do_not_send");
+  const teamFor = (kind: string) =>
+    (team ?? []).flatMap((t) => {
+      const name = (t.staff as unknown as { name: string } | null)?.name;
+      return t.kind === kind && name ? [{ id: String(t.staff_id), name }] : [];
+    });
+  const preferred = teamFor("preferred");
+  const doNotSend = teamFor("do_not_send");
+  // Names to show, and matching ids so two people with one name stay distinct.
+  client.preferredStaff = preferred.map((p) => p.name);
+  client.preferredStaffIds = preferred.map((p) => p.id);
+  client.doNotSend = doNotSend.map((p) => p.name);
+  client.doNotSendIds = doNotSend.map((p) => p.id);
 
   return client;
 }

@@ -224,6 +224,45 @@ export function MenuDivider() {
   return <div className="my-1 h-[0.5px] bg-line" />;
 }
 
+/** A quiet Delete button that asks once before doing anything. */
+export function ConfirmDelete({
+  label = "Delete",
+  question = "Delete this?",
+  disabled,
+  onConfirm,
+}: {
+  label?: string;
+  question?: string;
+  disabled?: boolean;
+  onConfirm: () => void;
+}) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <Button variant="bare" disabled={disabled} onClick={() => setAsking(true)}>
+        {label}
+      </Button>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[12px] text-ink-3">
+      {question}
+      <Button
+        variant="bare"
+        onClick={() => {
+          setAsking(false);
+          onConfirm();
+        }}
+      >
+        Yes
+      </Button>
+      <Button variant="bare" onClick={() => setAsking(false)}>
+        No
+      </Button>
+    </span>
+  );
+}
+
 export function EmptyState({
   icon: Icon,
   title,

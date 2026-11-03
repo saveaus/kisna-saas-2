@@ -1,16 +1,24 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/session";
 import {
   CLIENT_COLUMNS,
   CLIENT_FINANCIAL_COLUMNS,
+  CONTACT_COLUMNS,
   toRow,
   type FieldValue,
 } from "@/lib/records";
-import { FUNDING_TYPES } from "@/lib/fields";
-import { validateClientField } from "./validate";
+import { CLIENT_FILES_BUCKET, FUNDING_TYPES } from "@/lib/fields";
+import {
+  isClientFilePath,
+  validateClientField,
+  validateContact,
+  validateNote,
+  validateUpload,
+} from "./validate";
 
 export type ActionResult = { ok: true; id: number } | { ok: false; error: string };
 
@@ -196,5 +204,239 @@ export async function setClientStaffListAction(input: {
   }
 
   refreshClient(input.clientId);
+  return { ok: true };
+}
+
+/* ---------- Notes ---------- */
+
+export async function addClientNoteAction(input: { clientId: number; body: string }): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  if (!isId(input.clientId)) return { ok: false, error: "Client not found." };
+  const valid = validateNote(input.body);
+  if (!valid.ok) return valid;
+
+  const supabase = await createClient();
+  // The database stamps who wrote it, from the session.
+  const { error } = await supabase.from("client_notes").insert({
+    workspace_id: check.session.workspaceId,
+    client_id: input.clientId,
+    body: valid.body,
+  });
+  if (error) return { ok: false, error: friendly(error) };
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
+export async function updateClientNoteAction(input: {
+  clientId: number;
+  noteId: number;
+  body: string;
+}): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  if (!isId(input.clientId) || !isId(input.noteId)) return { ok: false, error: "Note not found." };
+  const valid = validateNote(input.body);
+  if (!valid.ok) return valid;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("client_notes")
+    .update({ body: valid.body })
+    .eq("workspace_id", check.session.workspaceId)
+    .eq("client_id", input.clientId)
+    .eq("id", input.noteId)
+    .select("id");
+  if (error) return { ok: false, error: friendly(error) };
+  if (!data.length) return { ok: false, error: "You can only edit your own notes." };
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
+/** Authors can delete their own notes, and a superadmin can delete any (the database decides). */
+export async function deleteClientNoteAction(input: { clientId: number; noteId: number }): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  if (!isId(input.clientId) || !isId(input.noteId)) return { ok: false, error: "Note not found." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("client_notes")
+    .delete()
+    .eq("workspace_id", check.session.workspaceId)
+    .eq("client_id", input.clientId)
+    .eq("id", input.noteId)
+    .select("id");
+  if (error) return { ok: false, error: friendly(error) };
+  if (!data.length) return { ok: false, error: "You can only delete your own notes." };
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
+/* ---------- Contacts ---------- */
+
+/** Add a contact, or update one when contactId is given. */
+export async function saveClientContactAction(input: {
+  clientId: number;
+  contactId?: number;
+  record: Record<string, FieldValue>;
+}): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+  const { workspaceId } = check.session;
+
+  if (!isId(input.clientId)) return { ok: false, error: "Client not found." };
+  if (input.contactId !== undefined && !isId(input.contactId)) {
+    return { ok: false, error: "Contact not found." };
+  }
+  const valid = validateContact(input.record);
+  if (!valid.ok) return valid;
+  const row = toRow(valid.record, CONTACT_COLUMNS);
+
+  const supabase = await createClient();
+  if (input.contactId === undefined) {
+    const { error } = await supabase
+      .from("client_contacts")
+      .insert({ ...row, workspace_id: workspaceId, client_id: input.clientId });
+    if (error) return { ok: false, error: friendly(error) };
+  } else {
+    const { data, error } = await supabase
+      .from("client_contacts")
+      .update(row)
+      .eq("workspace_id", workspaceId)
+      .eq("client_id", input.clientId)
+      .eq("id", input.contactId)
+      .select("id");
+    if (error) return { ok: false, error: friendly(error) };
+    if (!data.length) return { ok: false, error: "Contact not found." };
+  }
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
+export async function deleteClientContactAction(input: {
+  clientId: number;
+  contactId: number;
+}): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  if (!isId(input.clientId) || !isId(input.contactId)) return { ok: false, error: "Contact not found." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("client_contacts")
+    .delete()
+    .eq("workspace_id", check.session.workspaceId)
+    .eq("client_id", input.clientId)
+    .eq("id", input.contactId)
+    .select("id");
+  if (error) return { ok: false, error: friendly(error) };
+  if (!data.length) return { ok: false, error: "Contact not found." };
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
+/* ---------- Files ----------
+ * Uploads go straight from the browser to private storage, because server
+ * actions only take small requests. Step one checks access and returns a
+ * one-time upload ticket. Step two, after the upload, records the file.
+ */
+
+type UploadInput = { clientId: number; name: string; size: number; type: string };
+
+export async function startClientFileUploadAction(
+  input: UploadInput,
+): Promise<
+  { ok: true; path: string; token: string; name: string; contentType: string } | { ok: false; error: string }
+> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+  const { workspaceId } = check.session;
+
+  if (!isId(input.clientId)) return { ok: false, error: "Client not found." };
+  const valid = validateUpload(input);
+  if (!valid.ok) return valid;
+
+  const supabase = await createClient();
+  const { data: client } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("id", input.clientId)
+    .maybeSingle();
+  if (!client) return { ok: false, error: "Client not found." };
+
+  const path = `${workspaceId}/${input.clientId}/${randomUUID()}`;
+  const { data, error } = await supabase.storage.from(CLIENT_FILES_BUCKET).createSignedUploadUrl(path);
+  if (error || !data) return { ok: false, error: error?.message ?? "Couldn't start the upload." };
+
+  return { ok: true, path, token: data.token, name: valid.name, contentType: valid.contentType };
+}
+
+export async function finishClientFileUploadAction(input: UploadInput & { path: string }): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+  const { workspaceId } = check.session;
+
+  if (!isId(input.clientId)) return { ok: false, error: "Client not found." };
+  const valid = validateUpload(input);
+  if (!valid.ok) return valid;
+  if (!isClientFilePath(input.path, workspaceId, input.clientId)) {
+    return { ok: false, error: "That upload isn't valid." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("client_files").insert({
+    workspace_id: workspaceId,
+    client_id: input.clientId,
+    name: valid.name,
+    storage_path: input.path,
+    size_bytes: valid.size,
+    mime_type: valid.contentType,
+  });
+  if (error) {
+    // Don't keep a stored file that nothing points to.
+    await supabase.storage.from(CLIENT_FILES_BUCKET).remove([input.path]);
+    return { ok: false, error: friendly(error) };
+  }
+
+  revalidatePath(`/clients/${input.clientId}`);
+  return { ok: true };
+}
+
+export async function deleteClientFileAction(input: { clientId: number; fileId: number }): Promise<SaveResult> {
+  const check = await checkPermission("clients_sites", "full");
+  if (!check.session) return { ok: false, error: check.error ?? "Not allowed." };
+
+  if (!isId(input.clientId) || !isId(input.fileId)) return { ok: false, error: "File not found." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("client_files")
+    .delete()
+    .eq("workspace_id", check.session.workspaceId)
+    .eq("client_id", input.clientId)
+    .eq("id", input.fileId)
+    .select("storage_path");
+  if (error) return { ok: false, error: friendly(error) };
+  if (!data.length) return { ok: false, error: "File not found." };
+
+  // The row is gone, so nobody can reach this file now. If removing it fails
+  // it's only left taking up space, so the person isn't told it failed.
+  const { error: removeError } = await supabase.storage
+    .from(CLIENT_FILES_BUCKET)
+    .remove(data.map((file) => file.storage_path));
+  if (removeError) console.error("Couldn't remove a stored client file:", removeError.message);
+
+  revalidatePath(`/clients/${input.clientId}`);
   return { ok: true };
 }

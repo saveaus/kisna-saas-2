@@ -7,7 +7,15 @@ import {
   validateNote,
   validateUpload,
 } from "./validate";
-import { clientFileType, clientTypeLevel, missingClientFields } from "@/lib/fields";
+import {
+  CLIENT_FIELDS,
+  clientFileType,
+  clientTypeLevel,
+  isFieldEditable,
+  missingClientFields,
+} from "@/lib/fields";
+import { CLIENT_COLUMNS, CLIENT_FINANCIAL_COLUMNS, CONTACT_COLUMNS } from "@/lib/records";
+import { clientContactExamples, clientFileExamples, clientNoteExamples, clients, staff } from "@/lib/demo-data";
 
 const TODAY = new Date("2026-11-03T00:00:00Z");
 const check = (key: string, value: Parameters<typeof validateClientField>[1]) =>
@@ -100,6 +108,44 @@ describe("validateClientField", () => {
     expect(check("reference", "x".repeat(501)).ok).toBe(false);
     expect(check("generalNotes", "x".repeat(5000)).ok).toBe(true);
     expect(check("generalNotes", "x".repeat(10001)).ok).toBe(false);
+  });
+});
+
+describe("field definitions", () => {
+  it("give every editable client field a database column", () => {
+    const columns = { ...CLIENT_COLUMNS, ...CLIENT_FINANCIAL_COLUMNS };
+    const missing = CLIENT_FIELDS.filter((f) => isFieldEditable(f) && f.type !== "relation")
+      .map((f) => f.key)
+      .filter((key) => !Object.hasOwn(columns, key));
+    expect(missing).toEqual([]);
+  });
+});
+
+describe("demo data", () => {
+  const clientNames = clients.map((c) => c.name);
+
+  it("notes are on real demo clients, by staff who can write them", () => {
+    for (const note of clientNoteExamples) {
+      expect(clientNames).toContain(note.client);
+      expect(validateNote(note.body).ok).toBe(true);
+      const role = staff.find((s) => s.name === note.author)?.role;
+      expect(["Superadmin", "Service Manager"]).toContain(role);
+    }
+  });
+
+  it("contacts are valid and on real demo clients", () => {
+    for (const contact of clientContactExamples) {
+      expect(clientNames).toContain(contact.client);
+      expect(validateContact(contact).ok).toBe(true);
+      expect(Object.keys(contact).filter((k) => k !== "client" && !Object.hasOwn(CONTACT_COLUMNS, k))).toEqual([]);
+    }
+  });
+
+  it("files are allowed types on real demo clients", () => {
+    for (const file of clientFileExamples) {
+      expect(clientNames).toContain(file.client);
+      expect(validateUpload({ name: file.name, size: file.body.length, type: "text/plain" }).ok).toBe(true);
+    }
   });
 });
 

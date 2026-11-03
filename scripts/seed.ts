@@ -11,9 +11,20 @@
  * just as they do in the app.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { randomBytes } from "node:crypto";
-import { clientFinancials, clientTeams, clients, demoViews, sites, staff } from "../src/lib/demo-data";
-import { CLIENT_COLUMNS, SITE_COLUMNS, STAFF_COLUMNS, toRow } from "../src/lib/records";
+import { randomBytes, randomUUID } from "node:crypto";
+import {
+  clientContactExamples,
+  clientFileExamples,
+  clientFinancials,
+  clientNoteExamples,
+  clientTeams,
+  clients,
+  demoViews,
+  sites,
+  staff,
+} from "../src/lib/demo-data";
+import { CLIENT_FILES_BUCKET } from "../src/lib/fields";
+import { CLIENT_COLUMNS, CONTACT_COLUMNS, SITE_COLUMNS, STAFF_COLUMNS, toRow } from "../src/lib/records";
 import { roleKeyFromLabel } from "../src/lib/permissions";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -227,6 +238,67 @@ async function main() {
         },
         { onConflict: "client_id" },
       ),
+    );
+  }
+
+  console.log("Notes, contacts and files…");
+  // Each note is written by its author's own login, so the database stamps the name.
+  const sessions = new Map<string, SupabaseClient>([[SUPERADMIN, db]]);
+  const sessionFor = async (name: string) => {
+    if (!sessions.has(name)) sessions.set(name, await signIn(LOGINS[name]));
+    return sessions.get(name)!;
+  };
+
+  for (const note of clientNoteExamples) {
+    const clientId = clientIds[note.client];
+    if (!clientId) continue;
+    const existing = await must(
+      db.from("client_notes").select("id").eq("client_id", clientId).eq("body", note.body).limit(1),
+    );
+    if (existing.length) continue;
+    const author = await sessionFor(note.author);
+    await must(
+      author.from("client_notes").insert({ workspace_id: workspaceId, client_id: clientId, body: note.body }),
+    );
+  }
+
+  for (const contact of clientContactExamples) {
+    const clientId = clientIds[contact.client];
+    if (!clientId) continue;
+    const existing = await must(
+      db.from("client_contacts").select("id").eq("client_id", clientId).eq("name", contact.name).limit(1),
+    );
+    if (existing.length) continue;
+    await must(
+      db.from("client_contacts").insert({
+        ...toRow(contact, CONTACT_COLUMNS),
+        workspace_id: workspaceId,
+        client_id: clientId,
+      }),
+    );
+  }
+
+  for (const file of clientFileExamples) {
+    const clientId = clientIds[file.client];
+    if (!clientId) continue;
+    const existing = await must(
+      db.from("client_files").select("id").eq("client_id", clientId).eq("name", file.name).limit(1),
+    );
+    if (existing.length) continue;
+    const path = `${workspaceId}/${clientId}/${randomUUID()}`;
+    const { error } = await db.storage
+      .from(CLIENT_FILES_BUCKET)
+      .upload(path, new Blob([file.body], { type: "text/plain" }), { contentType: "text/plain" });
+    if (error) throw new Error(error.message);
+    await must(
+      db.from("client_files").insert({
+        workspace_id: workspaceId,
+        client_id: clientId,
+        name: file.name,
+        storage_path: path,
+        size_bytes: Buffer.byteLength(file.body),
+        mime_type: "text/plain",
+      }),
     );
   }
 

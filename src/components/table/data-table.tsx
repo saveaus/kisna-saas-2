@@ -88,6 +88,7 @@ export function DataTable<T extends Row>({
   viewObject,
   rowHref,
   onCreate,
+  embedded,
 }: {
   title: string;
   icon: LucideIcon;
@@ -103,6 +104,8 @@ export function DataTable<T extends Row>({
   viewObject?: ViewObject;
   rowHref?: (row: T) => string;
   onCreate?: () => void;
+  /** Inside a record's tab: no page header or view tabs, and the page does the scrolling. */
+  embedded?: boolean;
 }) {
   const allView: View = { key: "all", label: "All", filters: [] };
   const [customViews, setCustomViews] = useState<View[]>(savedViews);
@@ -195,42 +198,49 @@ export function DataTable<T extends Row>({
   const filterable = columns.filter((c) => c.filterOptions?.length);
 
   return (
-    <div className="flex h-full flex-col">
-      <TopBar
-        icon={icon}
-        title={title}
-        actions={
-          <>
-            <Button variant="bare" icon={Upload} disabled title="Arrives after Step 4">
-              Import CSV
-            </Button>
-            {onCreate && (
-              <Button icon={Plus} onClick={onCreate}>
-                Create {noun}
+    <div className={embedded ? "hairline flex flex-col rounded-[8px]" : "flex h-full flex-col"}>
+      {!embedded && (
+        <TopBar
+          icon={icon}
+          title={title}
+          actions={
+            <>
+              <Button variant="bare" icon={Upload} disabled title="Arrives after Step 4">
+                Import CSV
               </Button>
-            )}
-          </>
-        }
-      >
-        <ViewTabs
-          allView={allView}
-          views={customViews}
-          setViews={setCustomViews}
-          activeKey={viewKey}
-          onSelect={(key) => {
-            setViewKey(key);
-            setFilters([]);
-          }}
-          activeFilters={activeFilters}
-          extraFilters={filters}
-          clearExtraFilters={() => setFilters([])}
-          presets={presets}
-          viewObject={viewObject}
-        />
-      </TopBar>
+              {onCreate && (
+                <Button icon={Plus} onClick={onCreate}>
+                  Create {noun}
+                </Button>
+              )}
+            </>
+          }
+        >
+          <ViewTabs
+            allView={allView}
+            views={customViews}
+            setViews={setCustomViews}
+            activeKey={viewKey}
+            onSelect={(key) => {
+              setViewKey(key);
+              setFilters([]);
+            }}
+            activeFilters={activeFilters}
+            extraFilters={filters}
+            clearExtraFilters={() => setFilters([])}
+            presets={presets}
+            viewObject={viewObject}
+          />
+        </TopBar>
+      )}
 
       {/* Toolbar: search, filters, display */}
-      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-y-[0.5px] border-line px-4">
+      <div
+        className={cn(
+          "flex h-10 shrink-0 items-center justify-between gap-2 border-line px-4",
+          embedded ? "border-b-[0.5px]" : "border-y-[0.5px]",
+        )}
+      >
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -303,96 +313,103 @@ export function DataTable<T extends Row>({
           </Popover>
         </div>
 
-        <Popover
-          align="right"
-          width={300}
-          trigger={({ toggle }) => (
-            <Button variant="ghost" icon={SlidersHorizontal} onClick={toggle}>
-              Display
+        <div className="flex shrink-0 items-center gap-1.5">
+          {embedded && onCreate && (
+            <Button icon={Plus} onClick={onCreate}>
+              Create {noun}
             </Button>
           )}
-        >
-          <div className="p-1">
-            <div className="flex items-center justify-between gap-2 px-1 py-1">
-              <span className="flex items-center gap-1.5 text-[13px] text-ink">
-                <ArrowUpDown size={13} className="text-ink-3" /> Sorting
-              </span>
-              <div className="flex items-center gap-1">
-                <select
-                  value={sort?.key ?? ""}
-                  onChange={(e) =>
-                    setSort(
-                      e.target.value
-                        ? { key: e.target.value, dir: sort?.dir ?? "asc" }
-                        : null,
-                    )
-                  }
-                  className="hairline h-6 rounded-[6px] bg-surface px-1.5 text-[12px] outline-none"
+          <Popover
+            align="right"
+            width={300}
+            trigger={({ toggle }) => (
+              <Button variant="ghost" icon={SlidersHorizontal} onClick={toggle}>
+                Display
+              </Button>
+            )}
+          >
+            <div className="p-1">
+              <div className="flex items-center justify-between gap-2 px-1 py-1">
+                <span className="flex items-center gap-1.5 text-[13px] text-ink">
+                  <ArrowUpDown size={13} className="text-ink-3" /> Sorting
+                </span>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={sort?.key ?? ""}
+                    onChange={(e) =>
+                      setSort(
+                        e.target.value
+                          ? { key: e.target.value, dir: sort?.dir ?? "asc" }
+                          : null,
+                      )
+                    }
+                    className="hairline h-6 rounded-[6px] bg-surface px-1.5 text-[12px] outline-none"
+                  >
+                    <option value="">None</option>
+                    {columns.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!sort}
+                    onClick={() =>
+                      sort &&
+                      setSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })
+                    }
+                    className="hairline flex h-6 w-6 items-center justify-center rounded-[6px] disabled:opacity-40"
+                    aria-label="Flip sort direction"
+                  >
+                    {sort?.dir === "desc" ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
+                  </button>
+                </div>
+              </div>
+              <MenuDivider />
+              <MenuLabel>Display properties</MenuLabel>
+              <div className="flex flex-wrap gap-1 px-1 pb-1">
+                {columns.slice(1).map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => toggleHidden(c.key)}
+                    className={cn(
+                      "h-6 rounded-[6px] border-[0.5px] px-[7px] text-[12px] font-medium",
+                      hidden.has(c.key)
+                        ? "border-line text-ink-4"
+                        : "border-line bg-hover text-ink",
+                    )}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <MenuDivider />
+              <div className="flex items-center justify-end gap-2 px-1 py-1">
+                <Button
+                  variant="bare"
+                  onClick={() => {
+                    setSort(null);
+                    setOrder(columns.map((c) => c.key));
+                    setHidden(
+                      new Set(columns.filter((c) => c.defaultHidden).map((c) => c.key)),
+                    );
+                  }}
                 >
-                  <option value="">None</option>
-                  {columns.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={!sort}
-                  onClick={() =>
-                    sort &&
-                    setSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })
-                  }
-                  className="hairline flex h-6 w-6 items-center justify-center rounded-[6px] disabled:opacity-40"
-                  aria-label="Flip sort direction"
-                >
-                  {sort?.dir === "desc" ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
-                </button>
+                  Reset
+                </Button>
+                <Button variant="bare" disabled title="Arrives after Step 4">
+                  Save default for everyone
+                </Button>
               </div>
             </div>
-            <MenuDivider />
-            <MenuLabel>Display properties</MenuLabel>
-            <div className="flex flex-wrap gap-1 px-1 pb-1">
-              {columns.slice(1).map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => toggleHidden(c.key)}
-                  className={cn(
-                    "h-6 rounded-[6px] border-[0.5px] px-[7px] text-[12px] font-medium",
-                    hidden.has(c.key)
-                      ? "border-line text-ink-4"
-                      : "border-line bg-hover text-ink",
-                  )}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-            <MenuDivider />
-            <div className="flex items-center justify-end gap-2 px-1 py-1">
-              <Button
-                variant="bare"
-                onClick={() => {
-                  setSort(null);
-                  setOrder(columns.map((c) => c.key));
-                  setHidden(
-                    new Set(columns.filter((c) => c.defaultHidden).map((c) => c.key)),
-                  );
-                }}
-              >
-                Reset
-              </Button>
-              <Button variant="bare" disabled title="Arrives after Step 4">
-                Save default for everyone
-              </Button>
-            </div>
-          </div>
-        </Popover>
+          </Popover>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="min-h-0 flex-1 overflow-auto pb-36">
+      <div className={embedded ? "min-h-64 overflow-x-auto" : "min-h-0 flex-1 overflow-auto pb-36"}>
         <table className="w-max min-w-full border-separate border-spacing-0 text-[13px]">
           <thead>
             <tr>

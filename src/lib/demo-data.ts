@@ -386,3 +386,104 @@ export const demoViews: { object: "clients" | "staff" | "sites"; name: string; f
   { object: "staff", name: "Support workers", filters: [{ column: "role", values: ["Service Delivery Worker"] }] },
   { object: "sites", name: "Group homes", filters: [{ column: "siteType", values: ["Supported Independent Living"] }] },
 ];
+
+/** Notes on client records. The author must be a demo login with full access to clients. */
+export const clientNoteExamples: { client: string; author: string; body: string }[] = [
+  {
+    client: "Margaret Doyle",
+    author: "Maya Chen",
+    body: "Reviewed the care plan with Margaret and Helen. Happy with the current schedule. Next review in March.",
+  },
+  {
+    client: "Margaret Doyle",
+    author: "Alex Morgan",
+    body: "Asked for the Thursday visit to move to the afternoon so Helen can be there.",
+  },
+  {
+    client: "Amira Hassan",
+    author: "Maya Chen",
+    body: "Prefers morning visits. Call the day before to confirm.",
+  },
+  {
+    client: "Noah Bennett",
+    author: "Maya Chen",
+    body: "New hearing aid fitted. Speak clearly and face him when talking.",
+  },
+  {
+    client: "Aisha Khan",
+    author: "Alex Morgan",
+    body: "Travel time agreed with Nadia. School hours only on weekdays.",
+  },
+];
+
+/** Family, support coordinators and plan managers. */
+export const clientContactExamples: {
+  client: string;
+  name: string;
+  contactType: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}[] = [
+  {
+    client: "Margaret Doyle",
+    name: "Helen Doyle",
+    contactType: "Family",
+    relationship: "Daughter",
+    phone: "0412 300 101",
+    email: "helen.doyle@example.com",
+    notes: "Visits Thursday afternoons.",
+  },
+  {
+    client: "Amira Hassan",
+    name: "Yusuf Hassan",
+    contactType: "Family",
+    relationship: "Brother",
+    phone: "0412 300 102",
+  },
+  {
+    client: "Noah Bennett",
+    name: "Karen Bennett",
+    contactType: "Family",
+    relationship: "Daughter",
+    phone: "0412 300 103",
+    notes: "Contact for schedule changes.",
+  },
+  {
+    client: "Sofia Rahman",
+    name: "Harbour Plan Management",
+    contactType: "Plan Manager",
+    phone: "07 3000 0210",
+    email: "accounts@harbourplan.example.com",
+  },
+  {
+    client: "Aisha Khan",
+    name: "Nadia Khan",
+    contactType: "Family",
+    relationship: "Mother",
+    phone: "0412 300 105",
+    notes: "Primary contact.",
+  },
+  {
+    client: "Aisha Khan",
+    name: "Daniel Foster",
+    contactType: "Support Coordinator",
+    phone: "0412 300 106",
+    email: "daniel.foster@example.com",
+  },
+];
+
+/** Small text files, so the Files tab has something to open. */
+export const clientFileExamples: { client: string; name: string; body: string }[] = [
+  {
+    client: "Margaret Doyle",
+    name: "Care plan summary.txt",
+    body: "Fictional demo file.\n\nGoals: stay at home, keep walking to the shops twice a week.\nSupports: personal care, domestic assistance.\n",
+  },
+  {
+    client: "Amira Hassan",
+    name: "Allergy action plan.txt",
+    body: "Fictional demo file.\n\nPeanut allergy. No food preparation with nuts in the house.\n",
+  },
+];
