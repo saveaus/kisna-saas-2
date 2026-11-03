@@ -117,9 +117,10 @@ grants it**, and `supabase/tests/grants.test.ts` must list it.
 
 - **Database region.** The project is in Frankfurt (`eu-central-1`), about 440 ms
   per trip from Australia, so saves take about 2 seconds. Australian data should be
-  in Sydney (`ap-southeast-2`): see "AI provider and data region" in the brief. A
-  project can't change region, so this means a new project, then `npm run db:push`
-  and `npm run seed`. It's cheapest while there's only demo data. Izak's call.
+  in Sydney (`ap-southeast-2`): see "AI provider and data region" in the brief. As
+  far as we know this means a new project (Supabase's regions page doesn't cover
+  moving one, so confirm first), then `npm run db:push` and `npm run seed`. It's
+  cheapest while there's only demo data. Izak's call.
 - **Support worker access.** Izak's comment, 3 Nov, not built yet: their permissions
   should be much lower, with no access to the AI or to some other admin features.
   Today their defaults include Chat: Full (`create_workspace`), which covers the
