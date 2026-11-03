@@ -1,23 +1,22 @@
 import {
-  BookOpen,
-  Box,
-  Building2,
   CalendarDays,
   ChartColumn,
   ClipboardCheck,
   Clock,
   FileText,
+  FolderOpen,
   FormInput,
   Gauge,
   Inbox,
   ListChecks,
   MapPin,
+  MessageCircle,
   Repeat,
   ScrollText,
   ShieldCheck,
   Siren,
+  Sparkles,
   SquareCheck,
-  StickyNote,
   Truck,
   User,
   Users,
@@ -27,8 +26,10 @@ import {
 } from "lucide-react";
 
 /**
- * Sidebar structure, following Lightfield's layout (brief → App structure).
- * Items without an href are placeholders; `phase` says when they arrive.
+ * Sidebar structure. Grouped the way Imploy groups its sections, in Lightfield's
+ * style, and kept short: what people use all day sits at the top, everything
+ * else is folded away. Move a group's defaultOpen to true when it has pages in
+ * daily use. Items without an href are placeholders; `phase` says when they arrive.
  */
 export type NavItem = {
   label: string;
@@ -38,9 +39,9 @@ export type NavItem = {
 };
 
 export type NavGroup = {
+  /** Groups with a label fold away. The one without is always open. */
   label?: string;
   items: NavItem[];
-  collapsible?: boolean;
   defaultOpen?: boolean;
 };
 
@@ -48,36 +49,35 @@ export const NAV: NavGroup[] = [
   {
     items: [
       { label: "Up next", icon: Clock, href: "/" },
-      { label: "Knowledge", icon: BookOpen, phase: 5 },
-      { label: "Skills", icon: Box, phase: 5 },
-    ],
-  },
-  {
-    label: "Records",
-    items: [
+      { label: "Tasks", icon: SquareCheck, phase: 6 },
+      { label: "Roster", icon: CalendarDays, phase: 2 },
       { label: "Clients", icon: Users, href: "/clients" },
       { label: "Sites", icon: MapPin, href: "/sites" },
       { label: "Staff", icon: User, href: "/staff" },
-      { label: "Prospects", icon: Inbox, phase: 6 },
-      { label: "Suppliers", icon: Truck, phase: 6 },
-      { label: "Incidents", icon: Siren, phase: 3 },
     ],
   },
   {
-    label: "Resources",
+    label: "Operations",
+    defaultOpen: false,
     items: [
-      { label: "Roster", icon: CalendarDays, phase: 2 },
-      { label: "Tasks", icon: SquareCheck, phase: 6 },
-      { label: "Notes", icon: StickyNote, phase: 6 },
-      { label: "Follow-ups", icon: Repeat, phase: 3 },
+      { label: "Incidents", icon: Siren, phase: 3 },
+      { label: "Documents", icon: FolderOpen, phase: 6 },
       { label: "Forms", icon: FormInput, phase: 6 },
-      { label: "Reports", icon: ChartColumn, phase: 6 },
+      { label: "Follow-ups", icon: Repeat, phase: 3 },
+    ],
+  },
+  {
+    label: "Business",
+    defaultOpen: false,
+    items: [
       { label: "Finance", icon: Wallet, phase: 4 },
+      { label: "Reports", icon: ChartColumn, phase: 6 },
+      { label: "Prospects", icon: Inbox, phase: 6 },
+      { label: "Suppliers", icon: Truck, phase: 6 },
     ],
   },
   {
     label: "Compliance",
-    collapsible: true,
     defaultOpen: false,
     items: [
       { label: "Overview", icon: Gauge, phase: 3 },
@@ -89,6 +89,12 @@ export const NAV: NavGroup[] = [
       { label: "Activity", icon: Activity, phase: 3 },
     ],
   },
+  {
+    label: "Assistant",
+    defaultOpen: false,
+    items: [
+      { label: "Chats", icon: MessageCircle, phase: 5 },
+      { label: "Skills", icon: Sparkles, phase: 5 },
+    ],
+  },
 ];
-
-export { Building2 as BusinessIcon };

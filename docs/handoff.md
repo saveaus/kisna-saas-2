@@ -30,7 +30,8 @@ providers, built from scratch in this repo (`saveaus/kisna-saas-2`).
 ## Decisions already made (don't reopen without asking)
 
 - Start from scratch; don't build on `saveaus/harbor`.
-- Structure follows Lightfield, not Attio.
+- Structure follows Lightfield, not Attio. The exception is the sidebar, which
+  groups items the way Imploy does and folds most away, so it looks simple.
 - No MCP feature in the product.
 - Next.js 16 + React 19 + Tailwind 4 + Supabase. Cache Components off.
 - Roles copy Imploy: Superadmin, Service Manager, Scheduler, Support

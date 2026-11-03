@@ -64,20 +64,20 @@ All 32 features are built new; the Phase column gives the build order.
 
 ## App structure (Lightfield)
 
-The app copies Lightfield's structure: it opens on Up next, the assistant's Ask bar sits on every page, and records and tools live in a quiet sidebar. Roster, Finance, Reports and Forms are purpose-built pages in Lightfield's style, because Lightfield has no equivalent.
+The app copies Lightfield's structure and Imploy's groupings: it opens on Up next, the assistant's Ask bar sits on every page, and records and tools live in a quiet sidebar. Roster, Finance, Reports and Forms are purpose-built pages in Lightfield's style, because Lightfield has no equivalent.
 
-**Sidebar**
+**Sidebar** (grouped the way Imploy groups its sections, styled like Lightfield, and kept short: Izak's decision, 3 Nov 2026)
 
 - Top: user menu (with Settings), Search, Notifications
-- Up next (home): today's shifts, tasks and alerts, with Just me and My team tabs
-- Knowledge: company documents and policies the assistant can draw on
-- Skills: saved assistant routines, for example "Fill vacant shifts"
-- Chats: New chat, then recent chats
-- Records: Clients, Sites, Staff, Prospects, Suppliers, Incidents
-- Resources: Tasks, Roster, Notes, Follow-ups, Forms, Reports, Finance
-- Compliance: Overview, Approvals, Policies, Registers, Audits, Evidence, Activity
-- Lists: saved lists, plus New list
+- Always open: Up next, Tasks, Roster, Clients, Sites, Staff
+- Folded away until opened:
+  - Operations: Incidents, Documents, Forms, Follow-ups
+  - Business: Finance, Reports, Prospects, Suppliers
+  - Compliance: Overview, Approvals, Policies, Registers, Audits, Evidence, Activity
+  - Assistant: Chats, Skills
 - Bottom: Help
+
+Documents is also where the assistant's Knowledge lives. Notes live on each record and saved lists are the view tabs on each table, so neither has its own sidebar item.
 
 **Ask bar:** the assistant's composer floats at the bottom of every page, tagged with what you're looking at (for example "All Tasks" or a client).
 
@@ -225,7 +225,7 @@ The assistant is rebuilt to work and look like Lightfield's, studied in the live
 
 ## Compliance features 21–32 (from Kinsa)
 
-These 12 features live under Compliance in the sidebar, except Follow-ups, which sits under Resources because it works across the whole app.
+These 12 features live under Compliance in the sidebar, except Follow-ups, which sits under Operations because it works across the whole app.
 
 - [ ] **21. Compliance overview**
   - Audit readiness score, for example 31% (29 of 95 required evidence items)

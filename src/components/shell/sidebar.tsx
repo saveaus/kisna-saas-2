@@ -9,7 +9,6 @@ import {
   ChevronRight,
   CircleHelp,
   LogOut,
-  Plus,
   Search,
   Settings,
 } from "lucide-react";
@@ -75,17 +74,16 @@ function Group({
       {group.label && (
         <button
           type="button"
-          disabled={!group.collapsible}
+          aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="flex h-7 items-center gap-1 px-[10px] pt-2 text-left text-[12px] font-medium text-ink-3 disabled:cursor-default"
+          className="flex h-7 items-center gap-1 rounded-[6px] px-[9px] text-left text-[12px] font-medium text-ink-3 hover:bg-hover hover:text-ink"
         >
           {group.label}
-          {group.collapsible &&
-            (open ? (
-              <ChevronDown size={12} strokeWidth={2} />
-            ) : (
-              <ChevronRight size={12} strokeWidth={2} />
-            ))}
+          {open ? (
+            <ChevronDown size={12} strokeWidth={2} />
+          ) : (
+            <ChevronRight size={12} strokeWidth={2} />
+          )}
         </button>
       )}
       {open &&
@@ -177,37 +175,12 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-2 pb-2">
         <Group group={NAV[0]} pathname={pathname} hiddenHrefs={hiddenHrefs} />
-
         <div className="flex flex-col gap-px">
-          <div className="flex h-7 items-center px-[10px] pt-2 text-[12px] font-medium text-ink-3">
-            Chats
-          </div>
-          <div
-            className="flex h-8 cursor-default items-center gap-2 rounded-[6px] px-[9px] text-[13px] text-ink-5"
-            title="Assistant arrives in Phase 5"
-          >
-            <Plus size={15} strokeWidth={1.75} />
-            New chat
-          </div>
-        </div>
-
-        {NAV.slice(1).map((group) => (
-          <Group key={group.label} group={group} pathname={pathname} hiddenHrefs={hiddenHrefs} />
-        ))}
-
-        <div className="flex flex-col gap-px">
-          <div className="flex h-7 items-center px-[10px] pt-2 text-[12px] font-medium text-ink-3">
-            Lists
-          </div>
-          <div
-            className="flex h-8 cursor-default items-center gap-2 rounded-[6px] px-[9px] text-[13px] text-ink-5"
-            title="Saved lists arrive in Step 3"
-          >
-            <Plus size={15} strokeWidth={1.75} />
-            New list
-          </div>
+          {NAV.slice(1).map((group) => (
+            <Group key={group.label} group={group} pathname={pathname} hiddenHrefs={hiddenHrefs} />
+          ))}
         </div>
       </div>
 
