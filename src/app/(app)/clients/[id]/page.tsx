@@ -14,18 +14,20 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
   const clientId = Number(id);
   if (!Number.isInteger(clientId)) notFound();
 
-  const [session, client] = await Promise.all([getSession(), getClient(clientId)]);
-  // Not found also covers "not allowed": the database hides clients you can't see.
-  if (!client) notFound();
-
+  const session = await getSession();
   const canEdit = sessionCan(session, "clients_sites", "full");
-  const [staffOptions, notes, contacts, files, activity] = await Promise.all([
+
+  // All at once: each trip to the database adds up when it's far away.
+  const [client, staffOptions, notes, contacts, files, activity] = await Promise.all([
+    getClient(clientId),
     canEdit ? listStaffOptions() : Promise.resolve([]),
     listClientNotes(clientId),
     listClientContacts(clientId),
     listClientFiles(clientId),
     listClientActivity(clientId),
   ]);
+  // Not found also covers "not allowed": the database hides clients you can't see.
+  if (!client) notFound();
 
   return (
     <ClientRecordView

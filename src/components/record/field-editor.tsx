@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Tag, User } from "lucide-react";
+import { Pencil, Tag, User } from "lucide-react";
 import { initials } from "@/lib/cn";
 import type { FieldDef } from "@/lib/fields";
 import type { FieldValue } from "@/lib/records";
@@ -11,7 +11,8 @@ import { ChipSelect, formatDate } from "@/components/popup/popup";
 /**
  * Inline editing for one field in a record's Details panel. Choices open the
  * same chip dropdown popups use. Everything else turns into an input: Enter or
- * clicking away saves, Esc cancels. A failed save stays open with the reason.
+ * clicking away saves, Esc cancels. The new value shows straight away while it
+ * saves. A failed save reopens with what was typed and the reason.
  */
 
 /** Saves a field. Resolves to an error message, or undefined if it worked. */
@@ -21,6 +22,17 @@ export type FieldSave = (field: FieldDef, value: FieldValue) => Promise<string |
 function promptFor(label: string) {
   const words = label.split(" ").map((w) => (w === w.toUpperCase() ? w : w.toLowerCase()));
   return `Set ${words.join(" ")}`;
+}
+
+const sameValue = (a: FieldValue, b: FieldValue) => JSON.stringify(a) === JSON.stringify(b);
+
+/** The save's error message, including when the request itself fails. */
+async function attemptSave(save: () => Promise<string | undefined>) {
+  try {
+    return await save();
+  } catch {
+    return "Couldn't save. Refresh the page and try again.";
+  }
 }
 
 export function isEmptyValue(value: FieldValue) {
@@ -94,7 +106,7 @@ function ChoiceEditor({
     setError(undefined);
     setPending({ value: next });
     inFlight.current += 1;
-    const problem = await onSave(field, next);
+    const problem = await attemptSave(() => onSave(field, next));
     inFlight.current -= 1;
     if (problem) setError(problem);
     if (inFlight.current === 0) setPending(null);
@@ -117,7 +129,7 @@ function ChoiceEditor({
 }
 
 const INPUT_CLASS =
-  "hairline block w-full rounded-[6px] bg-surface px-1.5 text-[13px] outline-none disabled:opacity-60";
+  "hairline block w-full rounded-[6px] bg-surface px-1.5 text-[13px] outline-none";
 
 const INPUT_TYPE: Partial<Record<FieldDef["type"], string>> = {
   email: "email",
@@ -137,61 +149,87 @@ function TextEditor({
   onSave: FieldSave;
 }) {
   const [editing, setEditing] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // What was typed, kept if a save fails so it isn't lost.
+  const [draft, setDraft] = useState<string>();
+  // Shows the new value straight away. The page's own value takes over when it arrives.
+  const [saved, setSaved] = useState<{ value: FieldValue; from: FieldValue } | null>(null);
   const [error, setError] = useState<string>();
   const cancelled = useRef(false);
 
+  const current = saved && sameValue(value, saved.from) ? saved.value : value;
   const isList = field.type === "multiselect";
-  const initial = Array.isArray(value) ? value.join(", ") : value === undefined ? "" : String(value);
+  const initial = Array.isArray(current) ? current.join(", ") : current === undefined ? "" : String(current);
 
   const commit = async (raw: string) => {
-    if (cancelled.current || busy) return;
+    if (cancelled.current) return;
     const text = raw.trim();
     if (text === initial) {
       setError(undefined);
+      setDraft(undefined);
       setEditing(false);
       return;
     }
     const next: FieldValue = isList
       ? text.split(",").map((part) => part.trim()).filter(Boolean)
       : text || undefined;
-    setBusy(true);
     setError(undefined);
-    const problem = await onSave(field, next);
-    setBusy(false);
-    if (problem) setError(problem);
-    else setEditing(false);
+    setDraft(undefined);
+    setEditing(false);
+    setSaving(true);
+    setSaved({ value: next, from: value });
+    const problem = await attemptSave(() => onSave(field, next));
+    setSaving(false);
+    if (problem) {
+      setSaved(null);
+      setDraft(raw);
+      setError(problem);
+      setEditing(true);
+    }
   };
 
   const cancel = () => {
     cancelled.current = true;
     setError(undefined);
+    setDraft(undefined);
     setEditing(false);
   };
 
   if (!editing) {
     return (
-      <button
-        type="button"
-        onClick={() => {
-          cancelled.current = false;
-          setEditing(true);
-        }}
-        className="-mx-1 block min-h-5 w-[calc(100%+8px)] rounded-[4px] px-1 text-left hover:bg-hover"
-      >
-        {isEmptyValue(value) ? (
-          <span className="text-ink-5">{promptFor(field.label)}…</span>
-        ) : (
-          <FieldValueView field={field} value={value} plain />
-        )}
-      </button>
+      <>
+        <button
+          type="button"
+          disabled={saving}
+          aria-label={`Edit ${field.label}`}
+          onClick={() => {
+            cancelled.current = false;
+            setEditing(true);
+          }}
+          className="group -mx-1 flex min-h-5 w-[calc(100%+8px)] cursor-text items-start gap-1 rounded-[4px] px-1 text-left hover:bg-hover disabled:cursor-default"
+        >
+          <span className="min-w-0 flex-1">
+            {isEmptyValue(current) ? (
+              <span className="text-ink-5">{promptFor(field.label)}…</span>
+            ) : (
+              <FieldValueView field={field} value={current} plain />
+            )}
+          </span>
+          <Pencil
+            size={12}
+            strokeWidth={1.75}
+            aria-hidden
+            className="mt-1 shrink-0 text-ink-4 opacity-0 group-hover:opacity-100"
+          />
+        </button>
+        {saving && <div className="mt-0.5 text-[12px] text-ink-4">Saving…</div>}
+      </>
     );
   }
 
   const shared = {
     autoFocus: true,
-    defaultValue: initial,
-    disabled: busy,
+    defaultValue: draft ?? initial,
     "aria-label": field.label,
     onBlur: (e: { currentTarget: { value: string } }) => commit(e.currentTarget.value),
   };

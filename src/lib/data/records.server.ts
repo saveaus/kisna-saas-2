@@ -92,24 +92,29 @@ export async function getClient(id: number) {
   if (!data) return null;
   const client = toClient(data as unknown as Record<string, unknown>);
 
-  // Bank details only for finance roles (the database also enforces this).
-  if (sessionCan(session, "finance", "read")) {
-    const { data: fin } = await supabase
-      .from("client_financials")
-      .select(Object.values(CLIENT_FINANCIAL_COLUMNS).join(", "))
+  const [financials, teamRows] = await Promise.all([
+    // Bank details only for finance roles (the database also enforces this).
+    sessionCan(session, "finance", "read")
+      ? supabase
+          .from("client_financials")
+          .select(Object.values(CLIENT_FINANCIAL_COLUMNS).join(", "))
+          .eq("workspace_id", session.workspaceId)
+          .eq("client_id", id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Preferred and do-not-send staff are rows in the client's team.
+    supabase
+      .from("client_team")
+      .select("kind, staff_id, staff:staff!client_team_staff_id_fkey(name)")
       .eq("workspace_id", session.workspaceId)
-      .eq("client_id", id)
-      .maybeSingle();
-    if (fin) Object.assign(client, fromRow(fin as unknown as Record<string, unknown>, CLIENT_FINANCIAL_COLUMNS));
+      .eq("client_id", id),
+  ]);
+  if (financials.data) {
+    Object.assign(client, fromRow(financials.data as unknown as Record<string, unknown>, CLIENT_FINANCIAL_COLUMNS));
   }
   client.business = session.workspaceName;
 
-  // Preferred and do-not-send staff are rows in the client's team.
-  const { data: team } = await supabase
-    .from("client_team")
-    .select("kind, staff_id, staff:staff!client_team_staff_id_fkey(name)")
-    .eq("workspace_id", session.workspaceId)
-    .eq("client_id", id);
+  const team = teamRows.data;
   const teamFor = (kind: string) =>
     (team ?? []).flatMap((t) => {
       const name = (t.staff as unknown as { name: string } | null)?.name;
