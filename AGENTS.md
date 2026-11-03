@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Care OS: project rules
 
-Read `docs/brief.md` first. It lists every feature, where it comes from, and
+Read `docs/handoff.md` and `docs/brief.md` first. It lists every feature, where it comes from, and
 the build order (Phase 1 plan).
 
 ## Where things come from

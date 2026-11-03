@@ -18,10 +18,10 @@ Phase 1 delivers the app shell plus working Clients and Staff, using Imploy's fi
 
 | Step | What gets built | How to check it | Status |
 | --- | --- | --- | --- |
-| 1. Look and shell | Lightfield design tokens, sidebar, Up next, Ask bar (not live), reusable table, record page and popup templates, shown with Imploy demo data | Click around and compare with Lightfield side by side | In progress |
-| 2. Login and roles | Sign-in, one workspace, roles (Superadmin, Service Manager, Scheduler, Support Worker), database rules per role, demo data | Log in as each role and see different access | Not started |
-| 3. Clients | Clients and Sites in the database: table, filters, saved lists, create popup, record page with Overview, Notes, Files and Contacts, Details panel, completeness flag, activity | Create, edit and find clients the way you would in Imploy | Not started |
-| 4. Staff | Staff in the database: table, create popup, record page with Overview, Notes, Files and Activity, Details panel | Same as Clients | Not started |
+| 1. Look and shell | Lightfield design tokens, sidebar, Up next, Ask bar (not live), reusable table, record page and popup templates, shown with Imploy demo data | Click around and compare with Lightfield side by side | Done |
+| 2. Login and roles | Sign-in, one workspace, roles (Superadmin, Service Manager, Scheduler, Support Worker), database rules per role, demo data | Log in as each role and see different access | Done in code; being set up on Supabase |
+| 3. Clients | Clients and Sites in the database: table, filters, saved lists, create popup, record page with Overview, Notes, Files and Contacts, Details panel, completeness flag, activity | Create, edit and find clients the way you would in Imploy | Partly done: table, saved views, create and record page read from the database. Still to do: editing, Notes, Files, Contacts, completeness flag, activity |
+| 4. Staff | Staff in the database: table, create popup, record page with Overview, Notes, Files and Activity, Details panel | Same as Clients | Partly done: table, saved views, create, invite and record page read from the database. Still to do: editing, Notes, Files, Activity |
 
 ## Sources and rules
 
