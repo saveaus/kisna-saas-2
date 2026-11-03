@@ -6,8 +6,7 @@ Features follow Imploy and Kinsa; the look and structure follow Lightfield.
 
 **Status:** Phase 1, Step 3 built: sign-in, workspaces, Imploy's four roles and
 tested database access rules, plus client records you can edit, with Notes,
-Contacts, private Files and an activity history. Not yet checked on real
-Supabase.
+Contacts, private Files and an activity history. Invite emails aren't tested yet.
 
 ## Set up (about 10 minutes)
 

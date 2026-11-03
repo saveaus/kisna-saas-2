@@ -58,48 +58,47 @@ On branch `step-3-clients`, not merged yet:
 - **Step 3, Clients:** click-to-edit in the Details panel, Notes, Contacts,
   Files (private bucket, one-minute links, shared with support workers per file),
   Incomplete flag and activity history. New migrations
-  `20261103020000_client_records.sql` and `20261103030000_client_file_sharing.sql`,
-  tested per role.
+  `20261103020000_client_records.sql`, `20261103030000_client_file_sharing.sql` and
+  `20261103040000_exact_api_grants.sql`, tested per role.
 - **Fictional demo data** in `src/lib/demo-data.ts`, added in Cursor. The seed
   fills the project's oldest workspace, or creates Demo Provider if there is
   none.
 
 `npm test` covers the database rules in-memory with PGlite (no Supabase needed)
-and renders the client screens. **Step 3 hasn't run on a real Supabase project,
-and neither have most of Step 2's screens.** Expect to fix things when it does:
-in particular file upload, which PGlite can't exercise.
+and renders the client screens. The test database copies Supabase's default
+permissions, so a grant that's too broad fails there too.
+
+**Step 3 is live on the real development project and was checked there on
+3 Nov:** every role through the API (71 checks) and the actual screens in a
+headless browser (72 checks), including a real file upload, sharing, and no
+browser errors. Those were throwaway scripts on temporary clients, which were
+deleted. Invite emails and sign-up confirmation emails haven't been tested.
 
 ## Where setup is up to
 
-Project `qxhnklaygagfbrgzgmfe`. Izak has signed up in the app. The first two
-migrations **are** on the project, confirmed through the API on 3 Nov
-(`workspaces`, `saved_views` and `create_workspace` all exist). They didn't go
-through the CLI, which has never been linked on this computer, so the project
-may have no record of them. The earlier `create_workspace` error should be gone,
-but hasn't been retested signed in.
+Project `qxhnklaygagfbrgzgmfe`. Done: `.env.local` has all its keys, the CLI is
+logged in and linked, all five migrations are applied and the history matches
+`supabase/migrations`, and the demo data is loaded into Izak's workspace. Demo
+logins are superadmin@, manager@, scheduler@ and worker@example.com, with
+`SEED_PASSWORD` from `.env.local`.
 
-**Client pages will error until the new migrations are pushed**, because they read
-tables those create.
+Still to do, when invites get tested (Izak does this in the dashboard):
 
-1. `.env.local` has the URL and anon key. `SUPABASE_SERVICE_ROLE_KEY` (line 11)
-   was still empty on disk. Never commit it or paste keys into chat.
-2. Izak runs `npx supabase@2 login` (needs a browser). Then
-   `npx --yes supabase@2 link --project-ref qxhnklaygagfbrgzgmfe` and
-   `npx --yes supabase@2 migration list`. If the first two show as not applied
-   on the remote, mark them with `migration repair --status applied` rather than
-   letting `db push` run them again. Check the new migrations with
-   `db push --dry-run`, then `npm run db:push`. If the API still can't see a
-   change, run `notify pgrst, 'reload schema';` in the SQL editor.
-3. `npm run seed`, then sign in as `superadmin@example.com` (`SEED_PASSWORD` in
-   `.env.local`) and check each role (manager@, scheduler@, worker@example.com).
-4. Authentication → URL Configuration: Site URL `http://localhost:3000`,
-   redirect `http://localhost:3000/**`. Copy
-   `supabase/templates/invite.html` into the hosted Invite email template. This
-   can wait until invites are tested. Supabase's built-in email only reaches
-   team members, 2 emails an hour.
+- Authentication → URL Configuration: Site URL `http://localhost:3000`,
+  redirect `http://localhost:3000/**`.
+- Authentication → Email Templates → Invite user: copy
+  `supabase/templates/invite.html`, subject from `supabase/config.toml`.
+- Supabase's built-in email only reaches team members, 2 emails an hour.
 
-If the Supabase MCP is set up in Cursor, prefer `read_only=true`; all
-schema changes go through files in `supabase/migrations`.
+Schema changes: add a file to `supabase/migrations`, then `npm run db:push`. Don't
+apply them another way. The first two migrations were applied in pieces outside
+the CLI (probably Cursor's Supabase MCP), which left five stray history records to
+clear. If that MCP is set up in Cursor, use `read_only=true`.
+
+Permissions: Supabase's defaults gave anon and authenticated every privilege on new
+tables, including TRUNCATE. `20261103040000_exact_api_grants.sql` set exact grants
+and closed that default, so **a new table has no API access until its migration
+grants it**, and `supabase/tests/grants.test.ts` must list it.
 
 ## Decisions from Izak on Step 3 (3 Nov 2026)
 
@@ -112,9 +111,9 @@ schema changes go through files in `supabase/migrations`.
 
 ## What's next
 
-1. Finish setup above and fix anything that breaks on real Supabase
-   (sign-in, invite email, permissions, saved views, Step 3).
-2. Izak checks Step 3, then merge it.
+1. Izak checks Step 3 and the sidebar by hand, then merge them (`step-3-clients`
+   first, then `simpler-sidebar`).
+2. Finish the email settings above and test invites.
 3. **Step 4, Staff:** same for staff: editing, Notes, Files, Activity. Prompt is
    in `docs/brief.md`. `RecordView`'s `editing` prop, `DataTable`'s `embedded`
    prop and `audit_log` are ready to reuse.

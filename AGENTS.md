@@ -54,8 +54,10 @@ the build order (Phase 1 plan).
 - Every table gets row level security from the start, checking role and
   permission area (`private.can`), not just workspace membership. Add tests
   for each role in `supabase/tests` whenever you add a table.
-- Schema changes are new files in `supabase/migrations`; never edit an
-  applied migration.
+- Schema changes are new files in `supabase/migrations`, applied with
+  `npm run db:push`; never edit an applied migration.
+- New tables have no API access until their migration grants it. Grant only what
+  each role needs, and list the table in `supabase/tests/grants.test.ts`.
 - The service-role key (`src/lib/supabase/admin.ts`) bypasses RLS: use it
   only after checking the caller's permissions, and never in client code.
 - NDIS pricing, award rates and claims must be checked against official
